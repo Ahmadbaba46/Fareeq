@@ -6,7 +6,6 @@ import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../app_state.dart';
 import '../models.dart';
-import '../services/location_service.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
 
@@ -27,48 +26,27 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       vsync: this, duration: const Duration(milliseconds: 900));
 
   StreamSubscription<List<Member>>? _membersSub;
-  StreamSubscription<LatLng>? _locSub;
   List<Member> _members = [];
   final Map<String, LatLng> _from = {};
   final Map<String, LatLng> _to = {};
   LatLng? _me;
-  bool _sharing = true;
   bool _fitted = false;
   bool _mapReady = false;
   String? _following;
 
-  Profile get _profile => widget.app.profile!;
   String get _code => widget.group.code;
 
   @override
   void initState() {
     super.initState();
     _membersSub = widget.app.repo.members(_code).listen(_onMembers);
-    _startLocation();
+    _onMe();
+    widget.app.myPosition.addListener(_onMe);
   }
 
-  Future<void> _startLocation() async {
-    final status = await LocationService.ensurePermission();
-    if (status != LocationStatus.ok) {
-      if (mounted) {
-        final msg = switch (status) {
-          LocationStatus.serviceOff => 'Turn on location services to share your position.',
-          LocationStatus.deniedForever => 'Location permission is blocked. Enable it in Settings.',
-          _ => 'Location permission is needed to share your position.',
-        };
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(msg)));
-      }
-      return;
-    }
-    final first = await LocationService.current();
-    if (first != null) _onMyPosition(first);
-    _locSub = LocationService.stream().listen(_onMyPosition, onError: (_) {});
-  }
-
-  void _onMyPosition(LatLng p) {
-    _me = p;
-    if (_sharing) widget.app.repo.updateLocation(_code, _profile, p);
+  void _onMe() {
+    final p = widget.app.myPosition.value;
+    if (p != null) _me = p;
   }
 
   void _onMembers(List<Member> list) {
@@ -153,7 +131,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   @override
   void dispose() {
     _membersSub?.cancel();
-    _locSub?.cancel();
+    widget.app.myPosition.removeListener(_onMe);
     _move.dispose();
     _fly.dispose();
     super.dispose();
@@ -219,14 +197,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
             group: widget.group,
             liveCount: _members.where((m) => m.isLive).length,
             total: _members.length,
-            sharing: _sharing,
-            demo: widget.app.repo.isDemo,
-            onSharing: (v) {
-              setState(() => _sharing = v);
-              if (v && _me != null) {
-                widget.app.repo.updateLocation(_code, _profile, _me!);
-              }
-            },
+            app: widget.app,
           ),
           Positioned(
             right: 16,
@@ -274,14 +245,11 @@ class _TopBar extends StatelessWidget {
     required this.group,
     required this.liveCount,
     required this.total,
-    required this.sharing,
-    required this.demo,
-    required this.onSharing,
+    required this.app,
   });
+  final AppState app;
   final Group group;
   final int liveCount, total;
-  final bool sharing, demo;
-  final ValueChanged<bool> onSharing;
 
   @override
   Widget build(BuildContext context) {
@@ -340,15 +308,18 @@ class _TopBar extends StatelessWidget {
                 ],
               ),
             ),
-            Column(mainAxisSize: MainAxisSize.min, children: [
-              Switch(
-                value: sharing,
-                onChanged: onSharing,
-                activeThumbColor: Brand.teal,
-              ),
-              Text(sharing ? 'Sharing' : 'Paused',
-                  style: const TextStyle(fontSize: 10, color: Colors.black54)),
-            ]),
+            ListenableBuilder(
+              listenable: app,
+              builder: (context, _) => Column(mainAxisSize: MainAxisSize.min, children: [
+                Switch(
+                  value: app.sharing,
+                  onChanged: app.setSharing,
+                  activeThumbColor: Brand.teal,
+                ),
+                Text(app.sharing ? 'Sharing' : 'Paused',
+                    style: const TextStyle(fontSize: 10, color: Colors.black54)),
+              ]),
+            ),
           ]),
         ),
       ),

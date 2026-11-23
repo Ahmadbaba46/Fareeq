@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:geolocator/geolocator.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:latlong2/latlong.dart';
 
 enum LocationStatus { ok, denied, deniedForever, serviceOff }
@@ -20,12 +21,28 @@ class LocationService {
     return LocationStatus.ok;
   }
 
-  /// Moves of 15 m or more are emitted - keeps Firestore writes (and battery)
-  /// low enough for the free tier.
+  /// Android 13+ needs this for the "sharing" notification to be visible.
+  static Future<void> askNotifications() async {
+    try {
+      await Permission.notification.request();
+    } catch (_) {}
+  }
+
+  /// Runs as an Android foreground service (persistent notification) so
+  /// updates continue when the app is in the background or screen is off.
+  /// Only moves of 15 m or more are emitted - keeps Firestore writes and
+  /// battery low enough for the free tier.
   static Stream<LatLng> stream() => Geolocator.getPositionStream(
-        locationSettings: const LocationSettings(
+        locationSettings: AndroidSettings(
           accuracy: LocationAccuracy.high,
           distanceFilter: 15,
+          foregroundNotificationConfig: const ForegroundNotificationConfig(
+            notificationTitle: 'Fareeq is sharing your location',
+            notificationText: 'Your travel group can see where you are.',
+            notificationChannelName: 'Location sharing',
+            enableWakeLock: true,
+            setOngoing: true,
+          ),
         ),
       ).map((p) => LatLng(p.latitude, p.longitude));
 

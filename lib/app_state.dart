@@ -1,5 +1,8 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:latlong2/latlong.dart';
+import 'services/location_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'data/demo_repository.dart';
 import 'data/firebase_repository.dart';
@@ -11,6 +14,13 @@ class AppState extends ChangeNotifier {
   late SharedPreferences _prefs;
   Profile? profile;
   List<Group> groups = [];
+
+  /// My latest position, shared with every joined group while [sharing].
+  final myPosition = ValueNotifier<LatLng?>(null);
+  bool sharing = true;
+  LocationStatus? locationStatus;
+  StreamSubscription<LatLng>? _locSub;
+  Timer? _heartbeat;
 
   Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
@@ -26,10 +36,12 @@ class AppState extends ChangeNotifier {
     if (name != null) {
       profile = Profile(name: name, colorIndex: _prefs.getInt('color') ?? 0);
     }
+    sharing = _prefs.getBool('sharing') ?? true;
     final raw = _prefs.getStringList('groups') ?? [];
     groups = raw
         .map((e) => Group.fromJson(jsonDecode(e) as Map<String, dynamic>))
         .toList();
+    if (profile != null) unawaited(startTracking());
   }
 
   Future<void> saveProfile(Profile p) async {
@@ -37,6 +49,7 @@ class AppState extends ChangeNotifier {
     await _prefs.setString('name', p.name);
     await _prefs.setInt('color', p.colorIndex);
     notifyListeners();
+    unawaited(startTracking());
   }
 
   Future<void> _persist() => _prefs.setStringList(
@@ -47,6 +60,8 @@ class AppState extends ChangeNotifier {
     groups.insert(0, g);
     await _persist();
     notifyListeners();
+    final pos = myPosition.value;
+    if (pos != null) _push(pos);
     return g;
   }
 
@@ -59,6 +74,8 @@ class AppState extends ChangeNotifier {
     groups.insert(0, g);
     await _persist();
     notifyListeners();
+    final pos = myPosition.value;
+    if (pos != null) _push(pos);
     return g;
   }
 
@@ -67,5 +84,51 @@ class AppState extends ChangeNotifier {
     groups.removeWhere((x) => x.code == g.code);
     await _persist();
     notifyListeners();
+  }
+
+  // ---- background-capable location tracking ----
+
+  Future<void> startTracking() async {
+    if (_locSub != null || profile == null) return;
+    locationStatus = await LocationService.ensurePermission();
+    notifyListeners();
+    if (locationStatus != LocationStatus.ok) return;
+    LocationService.askNotifications();
+    final first = await LocationService.current();
+    if (first != null) _onPosition(first);
+    if (!sharing) return; // paused: no foreground service, no notification
+    _locSub = LocationService.stream().listen(_onPosition, onError: (_) {});
+    // Re-send while stationary so friends still see you as "live".
+    _heartbeat = Timer.periodic(const Duration(seconds: 90), (_) {
+      final p = myPosition.value;
+      if (p != null) _push(p);
+    });
+  }
+
+  Future<void> stopTracking() async {
+    await _locSub?.cancel();
+    _locSub = null;
+    _heartbeat?.cancel();
+    _heartbeat = null;
+  }
+
+  Future<void> setSharing(bool v) async {
+    sharing = v;
+    await _prefs.setBool('sharing', v);
+    notifyListeners();
+    await stopTracking();
+    await startTracking();
+  }
+
+  void _onPosition(LatLng p) {
+    myPosition.value = p;
+    _push(p);
+  }
+
+  void _push(LatLng p) {
+    if (!sharing || profile == null) return;
+    for (final g in groups) {
+      repo.updateLocation(g.code, profile!, p).catchError((_) {});
+    }
   }
 }

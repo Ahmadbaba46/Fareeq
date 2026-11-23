@@ -35,7 +35,7 @@ class Member {
 
   String get initial => name.isEmpty ? '?' : String.fromCharCode(name.runes.first).toUpperCase();
 
-  bool get isLive => DateTime.now().difference(updatedAt).inMinutes < 2;
+  bool get isLive => DateTime.now().difference(updatedAt).inMinutes < 3;
 
   String get lastSeen {
     final d = DateTime.now().difference(updatedAt);

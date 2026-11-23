@@ -5,6 +5,24 @@ import 'package:latlong2/latlong.dart';
 import '../models.dart';
 import 'repository.dart';
 
+/// Values come from `--dart-define` at build time (see README / CI workflow).
+class FirebaseConfig {
+  static const apiKey = String.fromEnvironment('FIREBASE_API_KEY');
+  static const appId = String.fromEnvironment('FIREBASE_APP_ID');
+  static const projectId = String.fromEnvironment('FIREBASE_PROJECT_ID');
+  static const senderId = String.fromEnvironment('FIREBASE_SENDER_ID');
+
+  static bool get isConfigured =>
+      apiKey.isNotEmpty && appId.isNotEmpty && projectId.isNotEmpty;
+
+  static FirebaseOptions get options => const FirebaseOptions(
+        apiKey: apiKey,
+        appId: appId,
+        projectId: projectId,
+        messagingSenderId: senderId,
+      );
+}
+
 /// Firestore + anonymous auth. Both are available on Firebase's free Spark
 /// plan (no credit card). Do NOT add Cloud Functions - they need Blaze.
 ///
@@ -22,7 +40,8 @@ class FirebaseRepository implements Repository {
 
   @override
   Future<void> init() async {
-    await Firebase.initializeApp(); // throws if not configured -> demo mode
+    if (!FirebaseConfig.isConfigured) throw StateError('Firebase not configured');
+    await Firebase.initializeApp(options: FirebaseConfig.options);
     final cred = FirebaseAuth.instance.currentUser != null
         ? FirebaseAuth.instance.currentUser!
         : (await FirebaseAuth.instance.signInAnonymously()).user!;

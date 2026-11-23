@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../app_state.dart';
 import '../models.dart';
+import '../services/location_service.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
 import 'map_screen.dart';
@@ -93,6 +94,29 @@ class HomeScreen extends StatelessWidget {
                           ),
                         ),
                       ]),
+                      if (app.locationStatus != null &&
+                          app.locationStatus != LocationStatus.ok) ...[
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Brand.coral.withValues(alpha: .3),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: const Row(children: [
+                            Icon(Icons.location_off_rounded,
+                                color: Colors.white, size: 20),
+                            SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'Location is off or blocked, so friends cannot see you. Allow it in Settings > Apps > Fareeq > Permissions.',
+                                style: TextStyle(
+                                    color: Colors.white, fontSize: 12.5),
+                              ),
+                            ),
+                          ]),
+                        ),
+                      ],
                       if (app.repo.isDemo) ...[
                         const SizedBox(height: 16),
                         Container(
