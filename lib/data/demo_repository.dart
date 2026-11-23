@@ -10,6 +10,7 @@ class DemoRepository implements Repository {
   final _rand = Random();
   final Map<String, LatLng> _myPos = {};
   final Map<String, List<_Bot>> _bots = {};
+  final Map<String, _DemoGroup> _groups = {};
 
   static const _fallback = LatLng(41.0082, 28.9784); // Istanbul
 
@@ -20,13 +21,17 @@ class DemoRepository implements Repository {
   @override
   Future<void> init() async {}
 
+  _DemoGroup _g(String code) => _groups.putIfAbsent(code, _DemoGroup.new);
+
   @override
   Future<Group> createGroup(String name, Profile me) async =>
       Group(code: generateCode(), name: name);
 
   @override
-  Future<Group?> joinGroup(String code, Profile me) async =>
-      Group(code: code.toUpperCase(), name: 'Trip $code');
+  Future<Group> joinGroup(String code, Profile me) async {
+    if (_g(code).locked) throw JoinException('This group is locked.');
+    return Group(code: code.toUpperCase(), name: 'Trip $code');
+  }
 
   @override
   Future<void> leave(String code) async {
@@ -37,6 +42,39 @@ class DemoRepository implements Repository {
   @override
   Future<void> updateLocation(String code, Profile me, LatLng pos) async {
     _myPos[code] = pos;
+  }
+
+  @override
+  Future<void> setSos(String code, Profile me, bool on) async {
+    _g(code).sos = on;
+  }
+
+  @override
+  Future<void> setMeeting(String code, Meeting? meeting) async {
+    _g(code)
+      ..meeting = meeting
+      ..push();
+  }
+
+  @override
+  Future<void> setLocked(String code, bool locked) async {
+    _g(code)
+      ..locked = locked
+      ..push();
+  }
+
+  @override
+  Future<void> endTrip(String code) async {
+    _g(code)
+      ..ended = true
+      ..push();
+  }
+
+  @override
+  Stream<GroupInfo> groupInfo(String code) async* {
+    final g = _g(code);
+    yield g.info;
+    yield* g.changes.stream;
   }
 
   List<_Bot> _botsFor(String code) => _bots.putIfAbsent(
@@ -65,6 +103,7 @@ class DemoRepository implements Repository {
           position: origin,
           updatedAt: now,
           isMe: true,
+          sos: _g(code).sos,
         ),
         for (final b in bots)
           Member(
@@ -78,6 +117,18 @@ class DemoRepository implements Repository {
       await Future<void>.delayed(const Duration(seconds: 2));
     }
   }
+}
+
+class _DemoGroup {
+  bool locked = false;
+  bool ended = false;
+  bool sos = false;
+  Meeting? meeting;
+  final changes = StreamController<GroupInfo>.broadcast();
+
+  GroupInfo get info => GroupInfo(
+      ownerId: 'me', locked: locked, meeting: meeting, ended: ended);
+  void push() => changes.add(info);
 }
 
 class _Bot {

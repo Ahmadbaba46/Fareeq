@@ -65,12 +65,11 @@ class AppState extends ChangeNotifier {
     return g;
   }
 
-  Future<Group?> join(String code) async {
-    final clean = code.trim().toUpperCase();
+  Future<Group> join(String code) async {
+    final clean = parseCode(code);
     final existing = groups.where((g) => g.code == clean);
     if (existing.isNotEmpty) return existing.first;
     final g = await repo.joinGroup(clean, profile!);
-    if (g == null) return null;
     groups.insert(0, g);
     await _persist();
     notifyListeners();
@@ -79,8 +78,17 @@ class AppState extends ChangeNotifier {
     return g;
   }
 
+  /// Drop a group locally (e.g. the owner ended the trip).
+  Future<void> forget(Group g) async {
+    groups.removeWhere((x) => x.code == g.code);
+    await _persist();
+    notifyListeners();
+  }
+
   Future<void> leave(Group g) async {
-    await repo.leave(g.code);
+    try {
+      await repo.leave(g.code);
+    } catch (_) {}
     groups.removeWhere((x) => x.code == g.code);
     await _persist();
     notifyListeners();

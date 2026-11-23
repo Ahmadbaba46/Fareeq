@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import '../app_state.dart';
+import '../data/repository.dart' show parseCode;
 import '../models.dart';
 import '../services/location_service.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
 import 'map_screen.dart';
+import 'scan_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key, required this.app});
@@ -317,14 +319,13 @@ class _GroupSheetState extends State<_GroupSheet> {
       final g = widget.create
           ? await widget.app.create(text)
           : await widget.app.join(text);
-      if (!mounted) return;
-      if (g == null) {
+      if (mounted) Navigator.pop(context, g);
+    } on JoinException catch (e) {
+      if (mounted) {
         setState(() {
           _busy = false;
-          _error = 'No group found with that code.';
+          _error = e.message;
         });
-      } else {
-        Navigator.pop(context, g);
       }
     } catch (e) {
       if (mounted) {
@@ -334,6 +335,14 @@ class _GroupSheetState extends State<_GroupSheet> {
         });
       }
     }
+  }
+
+  Future<void> _scan() async {
+    final v = await Navigator.of(context)
+        .push<String>(MaterialPageRoute(builder: (_) => const ScanScreen()));
+    if (v == null || !mounted) return;
+    _c.text = parseCode(v);
+    _submit();
   }
 
   @override
@@ -382,7 +391,7 @@ class _GroupSheetState extends State<_GroupSheet> {
                   fontSize: 18,
                   letterSpacing: widget.create ? 0 : 4),
               decoration: InputDecoration(
-                  hintText: widget.create ? 'e.g. Istanbul 2026' : 'ABC123',
+                  hintText: widget.create ? 'e.g. Istanbul 2026' : 'ABCD2345',
                   errorText: _error),
             ),
             const SizedBox(height: 18),
@@ -396,6 +405,21 @@ class _GroupSheetState extends State<_GroupSheet> {
                           strokeWidth: 2.5, color: Colors.white))
                   : Text(widget.create ? 'Create group' : 'Join group'),
             ),
+            if (!widget.create) ...[
+              const SizedBox(height: 10),
+              OutlinedButton.icon(
+                onPressed: _busy ? null : _scan,
+                icon: const Icon(Icons.qr_code_scanner_rounded),
+                label: const Text('Scan QR code'),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(56),
+                  foregroundColor: Brand.ink,
+                  side: const BorderSide(color: Colors.black12),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18)),
+                ),
+              ),
+            ],
           ],
         ),
       ),

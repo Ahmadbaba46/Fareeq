@@ -49,46 +49,104 @@ class FirebaseRepository implements Repository {
     _db = FirebaseFirestore.instance;
   }
 
+  DocumentReference<Map<String, dynamic>> _group(String code) =>
+      _db.collection('groups').doc(code);
+  CollectionReference<Map<String, dynamic>> _members(String code) =>
+      _group(code).collection('members');
+
+  Map<String, dynamic> _identity(Profile me) =>
+      {'name': me.name, 'color': me.colorIndex};
+
   @override
   Future<Group> createGroup(String name, Profile me) async {
     for (var i = 0; i < 5; i++) {
       final code = generateCode();
-      final ref = _db.collection('groups').doc(code);
+      final ref = _group(code);
       if ((await ref.get()).exists) continue;
-      await ref.set({'name': name, 'createdAt': FieldValue.serverTimestamp()});
+      await ref.set({
+        'name': name,
+        'ownerId': _uid,
+        'locked': false,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      await _members(code).doc(_uid).set({
+        ..._identity(me),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
       return Group(code: code, name: name);
     }
     throw Exception('Could not allocate a group code, try again');
   }
 
   @override
-  Future<Group?> joinGroup(String code, Profile me) async {
-    final snap = await _db.collection('groups').doc(code.toUpperCase()).get();
-    if (!snap.exists) return null;
-    return Group(code: snap.id, name: (snap.data()?['name'] as String?) ?? code);
+  Future<Group> joinGroup(String code, Profile me) async {
+    final id = code.toUpperCase();
+    final snap = await _group(id).get();
+    if (!snap.exists) throw JoinException('No group found with that code.');
+    final data = snap.data()!;
+    final already = (await _members(id).doc(_uid).get()).exists;
+    if (data['locked'] == true && !already) {
+      throw JoinException('This group is locked by its creator.');
+    }
+    await _members(id).doc(_uid).set({
+      ..._identity(me),
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+    return Group(code: snap.id, name: (data['name'] as String?) ?? id);
   }
 
   @override
-  Future<void> leave(String code) =>
-      _db.collection('groups').doc(code).collection('members').doc(_uid).delete();
+  Future<void> leave(String code) => _members(code).doc(_uid).delete();
 
   @override
   Future<void> updateLocation(String code, Profile me, LatLng pos) =>
-      _db.collection('groups').doc(code).collection('members').doc(_uid).set({
-        'name': me.name,
-        'color': me.colorIndex,
+      _members(code).doc(_uid).set({
+        ..._identity(me),
         'lat': pos.latitude,
         'lng': pos.longitude,
         'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+  @override
+  Future<void> setSos(String code, Profile me, bool on) =>
+      _members(code).doc(_uid).set({
+        ..._identity(me),
+        'sos': on,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+  @override
+  Future<void> setMeeting(String code, Meeting? meeting) =>
+      _group(code).update({'meeting': meeting?.toMap()});
+
+  @override
+  Future<void> setLocked(String code, bool locked) =>
+      _group(code).update({'locked': locked});
+
+  @override
+  Future<void> endTrip(String code) async {
+    final batch = _db.batch();
+    for (final d in (await _members(code).get()).docs) {
+      batch.delete(d.reference);
+    }
+    batch.delete(_group(code));
+    await batch.commit();
+  }
+
+  @override
+  Stream<GroupInfo> groupInfo(String code) => _group(code).snapshots().map((s) {
+        if (!s.exists) return const GroupInfo(ended: true);
+        final d = s.data()!;
+        return GroupInfo(
+          ownerId: d['ownerId'] as String?,
+          locked: d['locked'] == true,
+          meeting: Meeting.fromMap(d['meeting']),
+        );
       });
 
   @override
-  Stream<List<Member>> members(String code) => _db
-      .collection('groups')
-      .doc(code)
-      .collection('members')
-      .snapshots()
-      .map((s) => s.docs.map((d) {
+  Stream<List<Member>> members(String code) =>
+      _members(code).snapshots().map((s) => s.docs.map((d) {
             final m = d.data();
             final lat = (m['lat'] as num?)?.toDouble();
             final lng = (m['lng'] as num?)?.toDouble();
@@ -100,6 +158,7 @@ class FirebaseRepository implements Repository {
               updatedAt:
                   (m['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
               isMe: d.id == _uid,
+              sos: m['sos'] == true,
             );
           }).toList());
 }

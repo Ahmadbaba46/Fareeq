@@ -6,6 +6,11 @@ Link up with the people you travel with and see each other on one live map, with
 * Live map (OpenStreetMap, **no API key, no billing**) with smoothly gliding, pulsing markers
 * Distance to each friend, "last seen", tap to fly to them, one-tap directions
 * Pause sharing at any time
+* **QR invite**: anyone in the group can show a QR; friends scan it from "Join with code"
+* **Guide line**: tap a person (or the meeting point) to draw a free straight line with distance and walking time; one tap opens walking directions in your maps app
+* **SOS**: red alert with exact location to the whole group, with a "Go" button that draws the line to them
+* **Meeting point**: long-press the map
+* **Lock group** (no new joins) and **End trip** (deletes all locations) for the group creator
 
 ## Run it (demo mode, zero setup)
 ```
@@ -21,7 +26,7 @@ or from the workflow run's **Artifacts**. Enable Actions in the repo if asked.
 ## Go live for free (Firebase Spark plan, no credit card)
 1. console.firebase.google.com -> create project (stay on **Spark**).
 2. **Build -> Authentication -> Sign-in method -> Anonymous -> Enable.**
-3. **Build -> Firestore Database -> Create** (production mode), then paste `firestore.rules` into the Rules tab and publish.
+3. **Build -> Firestore Database -> Create** (production mode), then paste `firestore.rules` into the Rules tab and publish. (Re-publish them after updating the app: the rules changed to support locking and ending trips.)
 4. **Project settings -> Add app -> Android**, package name `com.fuyoudhat.fareeq`. Skip the download step.
    From Project settings -> General -> your Android app, copy: API key, App ID, Project ID, Project number.
 5. In GitHub: repo -> Settings -> Secrets and variables -> Actions -> add:

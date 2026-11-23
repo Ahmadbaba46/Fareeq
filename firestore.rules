@@ -1,15 +1,28 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Anyone signed in (anonymously) who knows a 6-char group code can read
-    // that group; each person can only write their own location.
+    function signedIn() { return request.auth != null; }
+
     match /groups/{code} {
-      allow get: if request.auth != null;
-      allow list: if false;               // codes cannot be enumerated
-      allow create: if request.auth != null;
+      function isOwner() { return resource.data.ownerId == request.auth.uid; }
+
+      allow get: if signedIn();
+      allow list: if false;                    // codes cannot be enumerated
+      allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid;
+      // owner can change anything; any member may only set the meeting point
+      allow update: if signedIn() && (isOwner() ||
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['meeting']));
+      allow delete: if signedIn() && isOwner();
+
       match /members/{uid} {
-        allow read: if request.auth != null;
-        allow write: if request.auth != null && request.auth.uid == uid;
+        function groupDoc() { return get(/databases/$(database)/documents/groups/$(code)); }
+        allow read: if signedIn();
+        // joining is blocked while the group is locked
+        allow create: if signedIn() && request.auth.uid == uid &&
+            (groupDoc().data.locked != true || groupDoc().data.ownerId == request.auth.uid);
+        allow update: if signedIn() && request.auth.uid == uid;
+        allow delete: if signedIn() && (request.auth.uid == uid ||
+            groupDoc().data.ownerId == request.auth.uid);
       }
     }
   }

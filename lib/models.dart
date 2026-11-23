@@ -24,6 +24,7 @@ class Member {
     required this.position,
     required this.updatedAt,
     this.isMe = false,
+    this.sos = false,
   });
 
   final String id;
@@ -32,6 +33,7 @@ class Member {
   final LatLng? position;
   final DateTime updatedAt;
   final bool isMe;
+  final bool sos;
 
   String get initial => name.isEmpty ? '?' : String.fromCharCode(name.runes.first).toUpperCase();
 
@@ -45,4 +47,51 @@ class Member {
     if (d.inHours < 24) return '${d.inHours} h ago';
     return '${d.inDays} d ago';
   }
+}
+
+class Meeting {
+  Meeting({required this.position, required this.label, required this.by});
+  final LatLng position;
+  final String label;
+  final String by;
+
+  Map<String, dynamic> toMap() => {
+        'lat': position.latitude,
+        'lng': position.longitude,
+        'label': label,
+        'by': by,
+      };
+
+  static Meeting? fromMap(Object? m) {
+    if (m is! Map) return null;
+    final lat = (m['lat'] as num?)?.toDouble();
+    final lng = (m['lng'] as num?)?.toDouble();
+    if (lat == null || lng == null) return null;
+    return Meeting(
+      position: LatLng(lat, lng),
+      label: (m['label'] as String?) ?? 'Meeting point',
+      by: (m['by'] as String?) ?? '',
+    );
+  }
+}
+
+/// Live, shared settings of a group.
+class GroupInfo {
+  const GroupInfo({
+    this.ownerId,
+    this.locked = false,
+    this.meeting,
+    this.ended = false,
+  });
+  final String? ownerId;
+  final bool locked;
+  final Meeting? meeting;
+  final bool ended;
+}
+
+class JoinException implements Exception {
+  JoinException(this.message);
+  final String message;
+  @override
+  String toString() => message;
 }

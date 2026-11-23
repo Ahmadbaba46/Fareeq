@@ -110,19 +110,21 @@ class _PulseMarkerState extends State<PulseMarker>
   @override
   Widget build(BuildContext context) {
     final m = widget.member;
-    final color = Brand.memberColors[m.colorIndex % Brand.memberColors.length];
+    final color = m.sos
+        ? Colors.red
+        : Brand.memberColors[m.colorIndex % Brand.memberColors.length];
     return AnimatedBuilder(
       animation: _c,
       builder: (context, _) {
-        final t = m.isLive ? _c.value : 0.0;
+        final t = (m.isLive || m.sos) ? _c.value : 0.0;
         return Stack(
           alignment: Alignment.center,
           clipBehavior: Clip.none,
           children: [
-            if (m.isLive)
+            if (m.isLive || m.sos)
               Container(
-                width: 40 + 50 * t,
-                height: 40 + 50 * t,
+                width: 40 + (m.sos ? 70 : 50) * t,
+                height: 40 + (m.sos ? 70 : 50) * t,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: color.withValues(alpha: .35 * (1 - t)),
@@ -153,10 +155,10 @@ class _PulseMarkerState extends State<PulseMarker>
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
-                    color: Brand.ink,
+                    color: m.sos ? Colors.red : Brand.ink,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Text(m.isMe ? 'You' : m.name,
+                  child: Text(m.sos ? 'SOS' : (m.isMe ? 'You' : m.name),
                       style: const TextStyle(
                           color: Colors.white,
                           fontSize: 10,
