@@ -1,4 +1,4 @@
-package com.fareeq.fareeq
+package com.fuyoudhat.fareeq
 
 import io.flutter.embedding.android.FlutterActivity
 

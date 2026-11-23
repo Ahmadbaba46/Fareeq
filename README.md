@@ -22,7 +22,7 @@ or from the workflow run's **Artifacts**. Enable Actions in the repo if asked.
 1. console.firebase.google.com -> create project (stay on **Spark**).
 2. **Build -> Authentication -> Sign-in method -> Anonymous -> Enable.**
 3. **Build -> Firestore Database -> Create** (production mode), then paste `firestore.rules` into the Rules tab and publish.
-4. **Project settings -> Add app -> Android**, package name `com.fareeq.fareeq`. Skip the download step.
+4. **Project settings -> Add app -> Android**, package name `com.fuyoudhat.fareeq`. Skip the download step.
    From Project settings -> General -> your Android app, copy: API key, App ID, Project ID, Project number.
 5. In GitHub: repo -> Settings -> Secrets and variables -> Actions -> add:
    `FIREBASE_API_KEY`, `FIREBASE_APP_ID`, `FIREBASE_PROJECT_ID`, `FIREBASE_SENDER_ID` (= project number).

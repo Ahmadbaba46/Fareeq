@@ -167,7 +167,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
             children: [
               TileLayer(
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'com.fareeq.fareeq',
+                userAgentPackageName: 'com.fuyoudhat.fareeq',
               ),
               AnimatedBuilder(
                 animation: _move,
