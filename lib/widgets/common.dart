@@ -63,16 +63,24 @@ class Avatar extends StatelessWidget {
     required this.colorIndex,
     this.size = 44,
     this.emoji,
+    this.photoUrl,
   });
   final String name;
   final int colorIndex;
   final double size;
   final String? emoji;
+  final String? photoUrl;
 
   @override
   Widget build(BuildContext context) {
     final c = Brand.memberColors[colorIndex % Brand.memberColors.length];
-    return Container(
+    final hasEmoji = emoji != null && emoji!.isNotEmpty;
+    final letter = hasEmoji
+        ? emoji!
+        : (name.isEmpty
+              ? '?'
+              : String.fromCharCode(name.runes.first).toUpperCase());
+    final fallback = Container(
       width: size,
       height: size,
       alignment: Alignment.center,
@@ -85,17 +93,27 @@ class Avatar extends StatelessWidget {
         ),
       ),
       child: Text(
-        (emoji != null && emoji!.isNotEmpty)
-            ? emoji!
-            : (name.isEmpty
-                  ? '?'
-                  : String.fromCharCode(name.runes.first).toUpperCase()),
+        letter,
         style: TextStyle(
           color: Colors.white,
           fontWeight: FontWeight.w800,
-          fontSize: (emoji != null && emoji!.isNotEmpty)
-              ? size * .5
-              : size * .42,
+          fontSize: hasEmoji ? size * .5 : size * .42,
+        ),
+      ),
+    );
+    final url = photoUrl;
+    if (url == null || url.isEmpty) return fallback;
+    return ClipOval(
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: Image.network(
+          url,
+          fit: BoxFit.cover,
+          cacheWidth: (size * 3).round(),
+          errorBuilder: (_, _, _) => fallback,
+          loadingBuilder: (_, child, progress) =>
+              progress == null ? child : fallback,
         ),
       ),
     );
@@ -167,6 +185,7 @@ class _PulseMarkerState extends State<PulseMarker>
                   colorIndex: m.colorIndex,
                   size: 38,
                   emoji: m.emoji,
+                  photoUrl: m.photoUrl,
                 ),
               ),
             ),

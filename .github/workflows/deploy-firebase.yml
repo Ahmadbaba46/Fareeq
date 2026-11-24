@@ -1,0 +1,33 @@
+name: Deploy Firebase (functions + rules)
+
+on:
+  workflow_dispatch:
+    inputs:
+      region:
+        description: Firestore location region for functions (e.g. us-central1)
+        default: us-central1
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci || npm install
+        working-directory: functions
+      - run: npm test
+        working-directory: functions
+      - name: Deploy
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          echo "REGION=${{ inputs.region }}" > functions/.env
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/sa.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json"
+          npx firebase-tools deploy --only functions,firestore:rules,storage --project fess-f2027 --non-interactive
+          rm -f "$RUNNER_TEMP/sa.json"

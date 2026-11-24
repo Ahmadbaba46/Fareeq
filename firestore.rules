@@ -14,6 +14,12 @@ service cloud.firestore {
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['meeting']));
       allow delete: if signedIn() && isOwner();
 
+      // Push tokens: only the owner can read or write their own; Cloud
+      // Functions (admin) read them to send notifications.
+      match /tokens/{uid} {
+        allow read, write: if signedIn() && request.auth.uid == uid;
+      }
+
       match /members/{uid} {
         function groupDoc() { return get(/databases/$(database)/documents/groups/$(code)); }
         allow read: if signedIn();

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' show ThemeMode;
 import 'package:latlong2/latlong.dart';
@@ -32,6 +33,8 @@ class AppState extends ChangeNotifier {
   StreamSubscription<LatLng>? _locSub;
   Timer? _heartbeat;
   Timer? _idleCheck;
+  String? _pushToken;
+  bool _pushSetUp = false;
   bool _active = true; // moving -> GPS; standing still -> low-power
   LatLng? _lastFix;
   DateTime _lastMove = DateTime.now();
@@ -52,6 +55,7 @@ class AppState extends ChangeNotifier {
         name: name,
         colorIndex: _prefs.getInt('color') ?? 0,
         emoji: _prefs.getString('emoji'),
+        photoUrl: _prefs.getString('photo'),
       );
     }
     sharing = _prefs.getBool('sharing') ?? true;
@@ -68,6 +72,7 @@ class AppState extends ChangeNotifier {
     if (profile != null) {
       unawaited(startTracking());
       unawaited(refreshSummaries());
+      unawaited(setupPush());
     }
   }
 
@@ -75,6 +80,11 @@ class AppState extends ChangeNotifier {
     profile = p;
     await _prefs.setString('name', p.name);
     await _prefs.setInt('color', p.colorIndex);
+    if (p.photoUrl == null) {
+      await _prefs.remove('photo');
+    } else {
+      await _prefs.setString('photo', p.photoUrl!);
+    }
     if (p.emoji == null) {
       await _prefs.remove('emoji');
     } else {
@@ -85,12 +95,40 @@ class AppState extends ChangeNotifier {
       repo.updateIdentity(g.code, p).catchError((_) {});
     }
     unawaited(startTracking());
+    unawaited(setupPush());
   }
 
   Future<void> _persist() => _prefs.setStringList(
     'groups',
     groups.map((g) => jsonEncode(g.toJson())).toList(),
   );
+
+  // ---- push notifications (SOS / meeting point), sent by Cloud Functions ----
+
+  Future<void> setupPush() async {
+    if (_pushSetUp || repo.isDemo || profile == null) return;
+    _pushSetUp = true;
+    try {
+      final fm = FirebaseMessaging.instance;
+      await fm.requestPermission();
+      _pushToken = await fm.getToken();
+      fm.onTokenRefresh.listen((t) {
+        _pushToken = t;
+        _registerToken();
+      });
+      await _registerToken();
+    } catch (_) {
+      _pushSetUp = false; // try again next launch
+    }
+  }
+
+  Future<void> _registerToken([Group? only]) async {
+    final t = _pushToken;
+    if (t == null) return;
+    for (final g in only != null ? [only] : groups) {
+      repo.saveToken(g.code, t).catchError((_) {});
+    }
+  }
 
   Future<Group> create(String name) async {
     final g = await repo.createGroup(name, profile!);
@@ -99,6 +137,7 @@ class AppState extends ChangeNotifier {
     notifyListeners();
     final pos = myPosition.value;
     if (pos != null) _push(pos);
+    unawaited(_registerToken(g));
     return g;
   }
 
@@ -112,6 +151,7 @@ class AppState extends ChangeNotifier {
     notifyListeners();
     final pos = myPosition.value;
     if (pos != null) _push(pos);
+    unawaited(_registerToken(g));
     return g;
   }
 

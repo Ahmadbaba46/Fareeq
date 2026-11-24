@@ -321,6 +321,7 @@ class _Header extends StatelessWidget {
                     colorIndex: profile.colorIndex,
                     size: 48,
                     emoji: profile.emoji,
+                    photoUrl: profile.photoUrl,
                   ),
                   Positioned(
                     right: -1,
@@ -709,6 +710,7 @@ class _AvatarStack extends StatelessWidget {
                   name: shown[i].name,
                   colorIndex: shown[i].colorIndex,
                   emoji: shown[i].emoji,
+                  photoUrl: shown[i].photoUrl,
                   size: 26,
                 ),
               ),

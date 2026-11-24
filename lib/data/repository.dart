@@ -1,5 +1,7 @@
 import 'dart:math';
 
+import 'dart:typed_data';
+
 import 'package:flutter/foundation.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -35,6 +37,13 @@ abstract class Repository {
   /// Owner only: removes every member and the group itself.
   Future<void> endTrip(String code);
   Future<void> leave(String code);
+
+  /// Stores this device's push token for a group (read only by Cloud Functions).
+  Future<void> saveToken(String code, String token);
+
+  /// Uploads a small JPEG profile photo; returns its URL (null in demo mode).
+  Future<String?> uploadAvatar(Uint8List jpeg);
+  Future<void> deleteAvatar();
 }
 
 String generateCode() {

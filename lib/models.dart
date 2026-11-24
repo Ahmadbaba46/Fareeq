@@ -1,10 +1,16 @@
 import 'package:latlong2/latlong.dart';
 
 class Profile {
-  Profile({required this.name, required this.colorIndex, this.emoji});
+  Profile({
+    required this.name,
+    required this.colorIndex,
+    this.emoji,
+    this.photoUrl,
+  });
   final String name;
   final int colorIndex;
   final String? emoji;
+  final String? photoUrl;
 }
 
 class Group {
@@ -29,6 +35,7 @@ class Member {
     this.status,
     this.statusAt,
     this.emoji,
+    this.photoUrl,
   });
 
   final String id;
@@ -40,6 +47,7 @@ class Member {
   final bool sos;
   final String? status;
   final String? emoji;
+  final String? photoUrl;
   final DateTime? statusAt;
 
   /// A quick message ("Running late") stays visible for 30 minutes.
@@ -66,16 +74,23 @@ class Member {
 }
 
 class Meeting {
-  Meeting({required this.position, required this.label, required this.by});
+  Meeting({
+    required this.position,
+    required this.label,
+    required this.by,
+    this.byId,
+  });
   final LatLng position;
   final String label;
   final String by;
+  final String? byId; // who set it (so they are not notified about their own)
 
   Map<String, dynamic> toMap() => {
     'lat': position.latitude,
     'lng': position.longitude,
     'label': label,
     'by': by,
+    'byId': byId,
   };
 
   static Meeting? fromMap(Object? m) {
@@ -87,6 +102,7 @@ class Meeting {
       position: LatLng(lat, lng),
       label: (m['label'] as String?) ?? 'Meeting point',
       by: (m['by'] as String?) ?? '',
+      byId: m['byId'] as String?,
     );
   }
 }

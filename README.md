@@ -14,6 +14,7 @@ Link up with the people you travel with and see each other on one live map, with
 * **Quick messages** ("Running late", "I am lost"...) shown above your marker for 30 minutes
 * **Far-away alert** when someone is >1.5 km from everyone else (can be turned off), **trails** toggle, and a **no-connection banner**
 * Share the invite on WhatsApp
+* **Push alerts** (SOS, meeting point) and **profile photos** via Cloud Functions + Storage: see `FUNCTIONS.md`
 * **Dark mode** (Auto/Light/Dark, dark map tiles), **emoji avatars** and an editable profile (tap your avatar on the home screen)
 * **Offline maps**: every tile you view is cached for 30 days, and menu > *Save this area offline* pre-loads the visible area (small on purpose, to respect OpenStreetMap's usage policy)
 * **Battery saver**: after 4 minutes standing still, location switches from GPS to low-power mode and returns to GPS as soon as you move

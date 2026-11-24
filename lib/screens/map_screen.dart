@@ -497,6 +497,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
         position: p,
         label: label.isEmpty ? 'Meeting point' : label,
         by: _profile.name,
+        byId: widget.app.repo.userId,
       ),
     );
     HapticFeedback.mediumImpact();
@@ -1581,6 +1582,7 @@ class _MemberSheet extends StatelessWidget {
               name: m.name,
               colorIndex: m.colorIndex,
               emoji: m.emoji,
+              photoUrl: m.photoUrl,
             ),
             title: m.isMe ? 'You' : m.name,
             titleColor: m.sos ? Colors.red : null,

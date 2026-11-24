@@ -1,7 +1,10 @@
+import 'dart:typed_data';
+
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../models.dart';
@@ -13,6 +16,9 @@ class FirebaseConfig {
   static const appId = String.fromEnvironment('FIREBASE_APP_ID');
   static const projectId = String.fromEnvironment('FIREBASE_PROJECT_ID');
   static const senderId = String.fromEnvironment('FIREBASE_SENDER_ID');
+  static const storageBucket = String.fromEnvironment(
+    'FIREBASE_STORAGE_BUCKET',
+  );
 
   static bool get isConfigured =>
       apiKey.isNotEmpty && appId.isNotEmpty && projectId.isNotEmpty;
@@ -63,6 +69,7 @@ class FirebaseRepository implements Repository {
     'name': me.name,
     'color': me.colorIndex,
     'emoji': me.emoji,
+    'photoUrl': me.photoUrl,
   };
 
   @override
@@ -120,7 +127,38 @@ class FirebaseRepository implements Repository {
   }
 
   @override
-  Future<void> leave(String code) => _members(code).doc(_uid).delete();
+  Future<void> leave(String code) async {
+    await _group(code)
+        .collection('tokens')
+        .doc(_uid)
+        .delete()
+        .catchError((_) {});
+    await _members(code).doc(_uid).delete();
+  }
+
+  @override
+  Future<void> saveToken(String code, String token) =>
+      _group(code)
+          .collection('tokens')
+          .doc(_uid)
+          .set({'token': token, 'updatedAt': FieldValue.serverTimestamp()});
+
+  Reference get _avatarRef => FirebaseStorage.instance.ref('avatars/$_uid.jpg');
+
+  @override
+  Future<String?> uploadAvatar(Uint8List jpeg) async {
+    await _avatarRef.putData(jpeg, SettableMetadata(contentType: 'image/jpeg'));
+    final url = await _avatarRef.getDownloadURL();
+    // changes on every upload so cached copies are refreshed
+    return '$url&t=${DateTime.now().millisecondsSinceEpoch}';
+  }
+
+  @override
+  Future<void> deleteAvatar() async {
+    try {
+      await _avatarRef.delete();
+    } catch (_) {}
+  }
 
   @override
   Future<void> updateLocation(String code, Profile me, LatLng pos) =>
@@ -200,6 +238,7 @@ class FirebaseRepository implements Repository {
             isMe: d.id == _uid,
             sos: m['sos'] == true,
             emoji: m['emoji'] as String?,
+            photoUrl: m['photoUrl'] as String?,
             status: m['status'] as String?,
             statusAt: (m['statusAt'] as Timestamp?)?.toDate(),
           );

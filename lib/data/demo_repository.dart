@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:latlong2/latlong.dart';
@@ -52,6 +53,15 @@ class DemoRepository implements Repository {
   Future<void> updateLocation(String code, Profile me, LatLng pos) async {
     _myPos[code] = pos;
   }
+
+  @override
+  Future<void> saveToken(String code, String token) async {}
+
+  @override
+  Future<String?> uploadAvatar(Uint8List jpeg) async => null;
+
+  @override
+  Future<void> deleteAvatar() async {}
 
   @override
   Future<void> updateIdentity(String code, Profile me) async {}

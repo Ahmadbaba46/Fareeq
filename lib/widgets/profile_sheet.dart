@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../app_state.dart';
 import '../models.dart';
@@ -45,11 +46,14 @@ class _ProfileSheetState extends State<_ProfileSheet> {
   late final _name = TextEditingController(text: widget.app.profile!.name);
   late int _color = widget.app.profile!.colorIndex;
   String? _emoji;
+  String? _photo;
+  bool _uploading = false;
 
   @override
   void initState() {
     super.initState();
     _emoji = widget.app.profile!.emoji;
+    _photo = widget.app.profile!.photoUrl;
   }
 
   @override
@@ -61,10 +65,48 @@ class _ProfileSheetState extends State<_ProfileSheet> {
   Future<void> _save() async {
     final n = _name.text.trim();
     if (n.isEmpty) return;
+    final hadPhoto = (widget.app.profile!.photoUrl ?? '').isNotEmpty;
+    if (hadPhoto && _photo == null) {
+      await widget.app.repo.deleteAvatar();
+    }
     await widget.app.saveProfile(
-      Profile(name: n, colorIndex: _color, emoji: _emoji),
+      Profile(name: n, colorIndex: _color, emoji: _emoji, photoUrl: _photo),
     );
     if (mounted) Navigator.pop(context);
+  }
+
+  Future<void> _pickPhoto() async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      // Gallery only (Android's system photo picker: no permission needed).
+      // Shrunk on the phone to ~256 px / ~20 KB before upload.
+      final x = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 256,
+        maxHeight: 256,
+        imageQuality: 70,
+      );
+      if (x == null) return;
+      setState(() => _uploading = true);
+      final url = await widget.app.repo.uploadAvatar(await x.readAsBytes());
+      if (!mounted) return;
+      setState(() {
+        _uploading = false;
+        if (url != null) _photo = url;
+      });
+      if (url == null) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Photos need Firebase (not in demo mode).'),
+          ),
+        );
+      }
+    } catch (_) {
+      if (mounted) setState(() => _uploading = false);
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Could not upload the photo. Try again.')),
+      );
+    }
   }
 
   @override
@@ -101,8 +143,38 @@ class _ProfileSheetState extends State<_ProfileSheet> {
                   colorIndex: _color,
                   size: 84,
                   emoji: _emoji,
+                  photoUrl: _photo,
                 ),
               ),
+              const SizedBox(height: 10),
+              if (!widget.app.repo.isDemo)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    TextButton.icon(
+                      onPressed: _uploading ? null : _pickPhoto,
+                      icon: _uploading
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.photo_library_rounded, size: 18),
+                      label: Text(
+                        (_photo ?? '').isEmpty
+                            ? 'Choose photo'
+                            : 'Change photo',
+                      ),
+                    ),
+                    if ((_photo ?? '').isNotEmpty)
+                      TextButton(
+                        onPressed: _uploading
+                            ? null
+                            : () => setState(() => _photo = null),
+                        child: const Text('Remove'),
+                      ),
+                  ],
+                ),
               const SizedBox(height: 18),
               TextField(
                 controller: _name,
@@ -120,7 +192,10 @@ class _ProfileSheetState extends State<_ProfileSheet> {
                   _chip(
                     context,
                     selected: _emoji == null,
-                    onTap: () => setState(() => _emoji = null),
+                    onTap: () => setState(() {
+                      _emoji = null;
+                      _photo = null;
+                    }),
                     child: const Text(
                       'Aa',
                       style: TextStyle(fontWeight: FontWeight.w800),
@@ -130,7 +205,10 @@ class _ProfileSheetState extends State<_ProfileSheet> {
                     _chip(
                       context,
                       selected: _emoji == e,
-                      onTap: () => setState(() => _emoji = e),
+                      onTap: () => setState(() {
+                        _emoji = e;
+                        _photo = null;
+                      }),
                       child: Text(e, style: const TextStyle(fontSize: 22)),
                     ),
                 ],

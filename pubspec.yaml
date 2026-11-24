@@ -46,6 +46,9 @@ dependencies:
   permission_handler: ^13.0.2
   qr_flutter: ^4.1.0
   mobile_scanner: ^7.5.0
+  image_picker: ^1.2.4
+  firebase_storage: ^14.1.0
+  firebase_messaging: ^17.1.0
 
 dev_dependencies:
   flutter_test:
