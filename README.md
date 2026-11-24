@@ -14,6 +14,7 @@ Link up with the people you travel with and see each other on one live map, with
 * **Far-away alert** when someone is >1.5 km from everyone else (can be turned off), **trails** toggle, and a **no-connection banner**
 * Share the invite on WhatsApp
 * **Dark mode** (Auto/Light/Dark, dark map tiles), **emoji avatars** and an editable profile (tap your avatar on the home screen)
+* **Offline maps**: every tile you view is cached for 30 days, and menu > *Save this area offline* pre-loads the visible area (small on purpose, to respect OpenStreetMap's usage policy)
 * **Battery saver**: after 4 minutes standing still, location switches from GPS to low-power mode and returns to GPS as soon as you move
 * **Lock group** (no new joins) and **End trip** (deletes all locations) for the group creator
 
@@ -41,6 +42,8 @@ or from the workflow run's **Artifacts**. Enable Actions in the repo if asked.
 Local build: `flutter build apk --release --dart-define=FIREBASE_API_KEY=... --dart-define=FIREBASE_APP_ID=... --dart-define=FIREBASE_PROJECT_ID=... --dart-define=FIREBASE_SENDER_ID=...`
 
 Do **not** use Cloud Functions (they require the paid Blaze plan).
+
+See `RELEASE.md` for signing and publishing on Google Play.
 
 ## Limits to know
 * Spark quota: ~20k writes/day. Location is only written when you move 15 m, which supports a small group on a trip.

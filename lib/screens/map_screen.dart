@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -56,6 +57,17 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   bool _mapReady = false;
   bool _endedHandled = false;
   String? _target; // member id or _meetingId
+  static const _osmUrl = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+  static const _userAgent = 'com.fuyoudhat.fareeq';
+
+  /// Every tile you look at is cached on disk (up to 1 GB) and kept for 30
+  /// days, so places you have already seen on the map still work offline.
+  final NetworkTileProvider _tiles = NetworkTileProvider(
+    cachingProvider: BuiltInMapCachingProvider.getOrCreateInstance(
+      overrideFreshAge: const Duration(days: 30),
+    ),
+  );
+  bool _saving = false;
   bool _showTrails = false;
   final Map<String, List<LatLng>> _trails = {};
   final Set<String> _stragDismissed = {};
@@ -152,6 +164,83 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       _fitted = true;
       _fitAll();
     }
+  }
+
+  // ---------- offline map ----------
+  static int _tx(double lon, int z) =>
+      (((lon + 180) / 360) * (1 << z)).floor().clamp(0, (1 << z) - 1);
+  static int _ty(double lat, int z) {
+    final r = lat.clamp(-85.0, 85.0) * math.pi / 180;
+    final y = (1 - math.log(math.tan(r) + 1 / math.cos(r)) / math.pi) / 2;
+    return (y * (1 << z)).floor().clamp(0, (1 << z) - 1);
+  }
+
+  Future<void> _warmTile(TileCoordinates c, TileLayer layer) {
+    final done = Completer<void>();
+    final stream = _tiles.getImage(c, layer).resolve(ImageConfiguration.empty);
+    late ImageStreamListener l;
+    void finish() {
+      stream.removeListener(l);
+      if (!done.isCompleted) done.complete();
+    }
+
+    l = ImageStreamListener((_, _) => finish(), onError: (_, _) => finish());
+    stream.addListener(l);
+    return done.future.timeout(const Duration(seconds: 15), onTimeout: finish);
+  }
+
+  /// Politely pre-loads the tiles of the area on screen. Deliberately small
+  /// (max 150 tiles, 3 at a time): OpenStreetMap's free servers forbid bulk
+  /// downloading.
+  Future<void> _saveOffline() async {
+    if (_saving) return;
+    const cap = 150;
+    final cam = _map.camera;
+    final b = cam.visibleBounds;
+    final zoom = cam.zoom.round();
+    final coords = <TileCoordinates>[];
+    for (var z = (zoom - 1).clamp(3, 17); z <= (zoom + 1).clamp(3, 17); z++) {
+      final x0 = _tx(b.west, z), x1 = _tx(b.east, z);
+      final y0 = _ty(b.north, z), y1 = _ty(b.south, z);
+      final level = <TileCoordinates>[
+        for (var x = x0; x <= x1; x++)
+          for (var y = y0; y <= y1; y++) TileCoordinates(x, y, z),
+      ];
+      if (coords.length + level.length > cap) break;
+      coords.addAll(level);
+    }
+    if (coords.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Zoom in a little first: this area is too large.'),
+        ),
+      );
+      return;
+    }
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _saving = true);
+    messenger.showSnackBar(
+      SnackBar(content: Text('Saving ${coords.length} map tiles for offline…')),
+    );
+    final layer = TileLayer(
+      urlTemplate: _osmUrl,
+      userAgentPackageName: _userAgent,
+      tileProvider: _tiles,
+    );
+    for (var i = 0; i < coords.length; i += 3) {
+      await Future.wait([
+        for (final c in coords.skip(i).take(3)) _warmTile(c, layer),
+      ]);
+      if (!mounted) return;
+    }
+    setState(() => _saving = false);
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text('Done. This area now works offline for 30 days.'),
+        ),
+      );
   }
 
   /// Live people (not me) who are far from every other live person.
@@ -420,6 +509,8 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
         await showInviteSheet(context, widget.group);
       case 'sharing':
         await widget.app.setSharing(!widget.app.sharing);
+      case 'offline':
+        await _saveOffline();
       case 'trails':
         setState(() => _showTrails = !_showTrails);
       case 'straggler':
@@ -505,8 +596,9 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
             ),
             children: [
               TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'com.fuyoudhat.fareeq',
+                urlTemplate: _osmUrl,
+                userAgentPackageName: _userAgent,
+                tileProvider: _tiles,
                 // Dark mode: invert + dim the (light) OSM tiles.
                 tileBuilder: context.isDark
                     ? (ctx, tile, _) => ColorFiltered(
@@ -919,6 +1011,13 @@ class _TopBar extends StatelessWidget {
                             : Icons.play_circle_rounded,
                       ),
                       Text(sharing ? 'Pause my sharing' : 'Resume sharing'),
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'offline',
+                    child: _MenuRow(
+                      Icon(Icons.download_for_offline_rounded),
+                      Text('Save this area offline'),
                     ),
                   ),
                   PopupMenuItem(

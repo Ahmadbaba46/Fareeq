@@ -102,6 +102,7 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
     expect(find.text('Lock group (no new joins)'), findsOneWidget);
     expect(find.text('End trip'), findsOneWidget);
+    expect(find.text('Save this area offline'), findsOneWidget);
     await tester.tap(find.text('Lock group (no new joins)'));
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
