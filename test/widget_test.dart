@@ -146,8 +146,12 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(find.text('Save'));
     await tester.pump();
-    await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 200)));
+    // wait (real time) until the async save has finished, up to ~5 s
+    for (var i = 0; i < 50 && app.profile!.emoji != '🦁'; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 100)),
+      );
+    }
     await tester.pump(const Duration(seconds: 1));
     expect(app.profile!.emoji, '🦁');
 
