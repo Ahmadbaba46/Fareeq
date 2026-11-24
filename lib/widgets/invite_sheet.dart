@@ -28,8 +28,8 @@ class _InviteSheet extends StatelessWidget {
         24,
         28 + MediaQuery.of(context).padding.bottom,
       ),
-      decoration: const BoxDecoration(
-        color: Brand.sand,
+      decoration: BoxDecoration(
+        color: context.bg,
         borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
       ),
       child: Column(
@@ -39,7 +39,7 @@ class _InviteSheet extends StatelessWidget {
             width: 44,
             height: 5,
             decoration: BoxDecoration(
-              color: Colors.black12,
+              color: context.line,
               borderRadius: BorderRadius.circular(4),
             ),
           ),
@@ -49,10 +49,10 @@ class _InviteSheet extends StatelessWidget {
             style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             'Ask friends to scan this in Fareeq > Join with code',
             textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.black54),
+            style: TextStyle(color: context.muted),
           ),
           const SizedBox(height: 20),
           TweenAnimationBuilder<double>(
@@ -106,7 +106,7 @@ class _InviteSheet extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 10),
-                const Icon(Icons.copy_rounded, size: 20, color: Colors.black38),
+                Icon(Icons.copy_rounded, size: 20, color: context.subtle),
               ],
             ),
           ),

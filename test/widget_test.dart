@@ -4,6 +4,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:fareeq/app_state.dart';
 import 'package:fareeq/data/demo_repository.dart';
 import 'package:fareeq/models.dart';
+import 'package:fareeq/theme.dart';
 import 'package:fareeq/screens/home_screen.dart';
 import 'package:fareeq/screens/onboarding_screen.dart';
 import 'package:fareeq/screens/map_screen.dart';
@@ -12,8 +13,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 void main() {
   testWidgets('onboarding renders and advances', (tester) async {
     SharedPreferences.setMockInitialValues({});
-    final app = AppState()
-      ..repo = DemoRepository();
+    final app = AppState()..repo = DemoRepository();
     await tester.pumpWidget(MaterialApp(home: OnboardingScreen(app: app)));
     expect(find.textContaining('Travel together'), findsOneWidget);
     await tester.tap(find.byIcon(Icons.arrow_forward_rounded));
@@ -51,7 +51,11 @@ void main() {
     tester.view.physicalSize = const Size(420, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    await tester.pumpWidget(MaterialApp(home: MapScreen(app: app, group: g)));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MapScreen(app: app, group: g),
+      ),
+    );
     await tester.pump(const Duration(seconds: 3));
     expect(find.text('Test trip'), findsOneWidget);
     expect(find.text('Amina'), findsWidgets);
@@ -70,8 +74,14 @@ void main() {
     expect(find.text('Cancel'), findsWidgets);
 
     // meeting point via repo, shows in sheet
-    await app.repo.setMeeting(g.code,
-        Meeting(position: const LatLng(41.01, 28.98), label: 'Hotel lobby', by: 'Ahmad'));
+    await app.repo.setMeeting(
+      g.code,
+      Meeting(
+        position: const LatLng(41.01, 28.98),
+        label: 'Hotel lobby',
+        by: 'Ahmad',
+      ),
+    );
     await tester.pump(const Duration(seconds: 2));
     expect(find.text('Hotel lobby'), findsWidgets);
 
@@ -105,6 +115,53 @@ void main() {
     await tester.pump(const Duration(seconds: 3));
     expect(app.straggler, isFalse);
 
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 1));
+  });
+
+  testWidgets('dark mode renders; profile emoji saves', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final app = AppState();
+    await tester.runAsync(app.init);
+    await app.saveProfile(Profile(name: 'Ahmad', colorIndex: 1));
+    tester.view.physicalSize = const Size(420, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: Brand.theme(),
+        darkTheme: Brand.darkTheme(),
+        themeMode: ThemeMode.dark,
+        home: HomeScreen(app: app),
+      ),
+    );
+    await tester.pump(const Duration(seconds: 1));
+    await tester.tap(find.byIcon(Icons.edit_rounded));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('Appearance'), findsOneWidget);
+    await tester.tap(find.text('🦁'));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.text('Save'));
+    await tester.pump();
+    await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 200)));
+    await tester.pump(const Duration(seconds: 1));
+    expect(app.profile!.emoji, '🦁');
+
+    // map screen in dark mode
+    final g = Group(code: 'DARKCODE', name: 'Night trip');
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: Brand.theme(),
+        darkTheme: Brand.darkTheme(),
+        themeMode: ThemeMode.dark,
+        home: MapScreen(app: app, group: g),
+      ),
+    );
+    await tester.pump(const Duration(seconds: 3));
+    expect(find.text('Night trip'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
     await tester.pump(const Duration(seconds: 1));
   });

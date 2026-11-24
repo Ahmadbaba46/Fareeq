@@ -50,6 +50,9 @@ class DemoRepository implements Repository {
   }
 
   @override
+  Future<void> updateIdentity(String code, Profile me) async {}
+
+  @override
   Future<void> setSos(String code, Profile me, bool on) async {
     _g(code).sos = on;
   }

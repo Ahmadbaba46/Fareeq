@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart' show ThemeMode;
 import 'package:latlong2/latlong.dart';
 
 import 'services/location_service.dart';
@@ -23,9 +24,14 @@ class AppState extends ChangeNotifier {
   final myPosition = ValueNotifier<LatLng?>(null);
   bool sharing = true;
   bool straggler = true; // alert when someone is far from the group
+  ThemeMode themeMode = ThemeMode.system;
   LocationStatus? locationStatus;
   StreamSubscription<LatLng>? _locSub;
   Timer? _heartbeat;
+  Timer? _idleCheck;
+  bool _active = true; // moving -> GPS; standing still -> low-power
+  LatLng? _lastFix;
+  DateTime _lastMove = DateTime.now();
 
   Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
@@ -39,10 +45,19 @@ class AppState extends ChangeNotifier {
     }
     final name = _prefs.getString('name');
     if (name != null) {
-      profile = Profile(name: name, colorIndex: _prefs.getInt('color') ?? 0);
+      profile = Profile(
+        name: name,
+        colorIndex: _prefs.getInt('color') ?? 0,
+        emoji: _prefs.getString('emoji'),
+      );
     }
     sharing = _prefs.getBool('sharing') ?? true;
     straggler = _prefs.getBool('straggler') ?? true;
+    themeMode = switch (_prefs.getString('theme')) {
+      'light' => ThemeMode.light,
+      'dark' => ThemeMode.dark,
+      _ => ThemeMode.system,
+    };
     final raw = _prefs.getStringList('groups') ?? [];
     groups = raw
         .map((e) => Group.fromJson(jsonDecode(e) as Map<String, dynamic>))
@@ -54,7 +69,15 @@ class AppState extends ChangeNotifier {
     profile = p;
     await _prefs.setString('name', p.name);
     await _prefs.setInt('color', p.colorIndex);
+    if (p.emoji == null) {
+      await _prefs.remove('emoji');
+    } else {
+      await _prefs.setString('emoji', p.emoji!);
+    }
     notifyListeners();
+    for (final g in groups) {
+      repo.updateIdentity(g.code, p).catchError((_) {});
+    }
     unawaited(startTracking());
   }
 
@@ -106,16 +129,37 @@ class AppState extends ChangeNotifier {
 
   Future<void> startTracking() async {
     if (_locSub != null || profile == null) return;
-    locationStatus = await LocationService.ensurePermission();
+    try {
+      locationStatus = await LocationService.ensurePermission();
+    } catch (_) {
+      locationStatus = LocationStatus.serviceOff;
+    }
     notifyListeners();
     if (locationStatus != LocationStatus.ok) return;
     LocationService.askNotifications();
     final first = await LocationService.current();
     if (first != null) _onPosition(first);
     if (!sharing) return; // paused: no foreground service, no notification
-    _locSub = LocationService.stream().listen(_onPosition, onError: (_) {});
-    // Re-send while stationary so friends still see you as "live".
-    _heartbeat = Timer.periodic(const Duration(seconds: 90), (_) {
+    _active = true;
+    _lastMove = DateTime.now();
+    _listen();
+    _idleCheck = Timer.periodic(const Duration(seconds: 60), (_) {
+      // Standing still for 4+ minutes -> switch to low-power location.
+      if (_active && DateTime.now().difference(_lastMove).inMinutes >= 4) {
+        _active = false;
+        _listen();
+      }
+    });
+  }
+
+  void _listen() {
+    _locSub?.cancel();
+    _locSub = LocationService.stream(active: _active)
+        .listen(_onPosition, onError: (_) {});
+    // Re-send while stationary so friends still see you as "live"
+    // (they count anyone updated in the last 3 minutes as live).
+    _heartbeat?.cancel();
+    _heartbeat = Timer.periodic(Duration(seconds: _active ? 90 : 150), (_) {
       final p = myPosition.value;
       if (p != null) _push(p);
     });
@@ -126,6 +170,14 @@ class AppState extends ChangeNotifier {
     _locSub = null;
     _heartbeat?.cancel();
     _heartbeat = null;
+    _idleCheck?.cancel();
+    _idleCheck = null;
+  }
+
+  Future<void> setThemeMode(ThemeMode m) async {
+    themeMode = m;
+    await _prefs.setString('theme', m.name);
+    notifyListeners();
   }
 
   Future<void> setStraggler(bool v) async {
@@ -143,6 +195,15 @@ class AppState extends ChangeNotifier {
   }
 
   void _onPosition(LatLng p) {
+    final last = _lastFix;
+    if (last == null || const Distance().as(LengthUnit.Meter, last, p) > 25) {
+      _lastFix = p;
+      _lastMove = DateTime.now();
+      if (!_active) {
+        _active = true; // started moving again -> back to GPS
+        _listen();
+      }
+    }
     myPosition.value = p;
     _push(p);
   }

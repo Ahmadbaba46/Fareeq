@@ -21,6 +21,9 @@ abstract class Repository {
   Stream<List<Member>> members(String code);
   Stream<GroupInfo> groupInfo(String code);
   Future<void> updateLocation(String code, Profile me, LatLng pos);
+
+  /// Push a changed name / colour / emoji to a group the user is in.
+  Future<void> updateIdentity(String code, Profile me);
   Future<void> setSos(String code, Profile me, bool on);
   Future<void> setStatus(String code, Profile me, String? status);
   Future<void> setMeeting(String code, Meeting? meeting);

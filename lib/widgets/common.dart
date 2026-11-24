@@ -62,10 +62,12 @@ class Avatar extends StatelessWidget {
     required this.name,
     required this.colorIndex,
     this.size = 44,
+    this.emoji,
   });
   final String name;
   final int colorIndex;
   final double size;
+  final String? emoji;
 
   @override
   Widget build(BuildContext context) {
@@ -83,13 +85,17 @@ class Avatar extends StatelessWidget {
         ),
       ),
       child: Text(
-        name.isEmpty
-            ? '?'
-            : String.fromCharCode(name.runes.first).toUpperCase(),
+        (emoji != null && emoji!.isNotEmpty)
+            ? emoji!
+            : (name.isEmpty
+                  ? '?'
+                  : String.fromCharCode(name.runes.first).toUpperCase()),
         style: TextStyle(
           color: Colors.white,
           fontWeight: FontWeight.w800,
-          fontSize: size * .42,
+          fontSize: (emoji != null && emoji!.isNotEmpty)
+              ? size * .5
+              : size * .42,
         ),
       ),
     );
@@ -156,7 +162,12 @@ class _PulseMarkerState extends State<PulseMarker>
               ),
               child: Opacity(
                 opacity: m.isLive ? 1 : .55,
-                child: Avatar(name: m.name, colorIndex: m.colorIndex, size: 38),
+                child: Avatar(
+                  name: m.name,
+                  colorIndex: m.colorIndex,
+                  size: 38,
+                  emoji: m.emoji,
+                ),
               ),
             ),
             if (m.activeStatus != null)

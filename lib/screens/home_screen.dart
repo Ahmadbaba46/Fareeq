@@ -6,6 +6,7 @@ import '../models.dart';
 import '../services/location_service.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
+import '../widgets/profile_sheet.dart';
 import 'map_screen.dart';
 import 'scan_screen.dart';
 
@@ -70,10 +71,35 @@ class HomeScreen extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          Avatar(
-                            name: p.name,
-                            colorIndex: p.colorIndex,
-                            size: 48,
+                          GestureDetector(
+                            onTap: () => showProfileSheet(context, app),
+                            child: Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                Avatar(
+                                  name: p.name,
+                                  colorIndex: p.colorIndex,
+                                  size: 48,
+                                  emoji: p.emoji,
+                                ),
+                                Positioned(
+                                  right: -4,
+                                  bottom: -4,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(3),
+                                    decoration: const BoxDecoration(
+                                      color: Colors.white,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.edit_rounded,
+                                      size: 12,
+                                      color: Brand.ink,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                           const SizedBox(width: 14),
                           Expanded(
@@ -187,7 +213,7 @@ class HomeScreen extends StatelessWidget {
                 ),
               ),
               if (app.groups.isEmpty)
-                const SliverFillRemaining(
+                SliverFillRemaining(
                   hasScrollBody: false,
                   child: Center(
                     child: Padding(
@@ -195,7 +221,7 @@ class HomeScreen extends StatelessWidget {
                       child: Text(
                         'No groups yet.\nCreate one and share the code with your travel crew.',
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.black54, height: 1.5),
+                        style: TextStyle(color: context.muted, height: 1.5),
                       ),
                     ),
                   ),
@@ -271,11 +297,15 @@ class _ActionButton extends StatelessWidget {
             children: [
               Icon(icon, color: filled ? Brand.ink : Colors.white),
               const SizedBox(width: 8),
-              Text(
-                label,
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  color: filled ? Brand.ink : Colors.white,
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: filled ? Brand.ink : Colors.white,
+                  ),
                 ),
               ),
             ],
@@ -298,7 +328,7 @@ class _GroupCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.surface,
         borderRadius: BorderRadius.circular(22),
         boxShadow: [
           BoxShadow(
@@ -341,15 +371,15 @@ class _GroupCard extends StatelessWidget {
                       const SizedBox(height: 2),
                       Text(
                         'Code  ${group.code}',
-                        style: const TextStyle(
-                          color: Colors.black45,
+                        style: TextStyle(
+                          color: context.muted,
                           letterSpacing: 1.5,
                         ),
                       ),
                     ],
                   ),
                 ),
-                const Icon(Icons.chevron_right_rounded, color: Colors.black26),
+                Icon(Icons.chevron_right_rounded, color: context.subtle),
               ],
             ),
           ),
@@ -424,8 +454,8 @@ class _GroupSheetState extends State<_GroupSheet> {
       ),
       child: Container(
         padding: const EdgeInsets.fromLTRB(24, 14, 24, 28),
-        decoration: const BoxDecoration(
-          color: Brand.sand,
+        decoration: BoxDecoration(
+          color: context.bg,
           borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
         ),
         child: Column(
@@ -437,7 +467,7 @@ class _GroupSheetState extends State<_GroupSheet> {
                 width: 44,
                 height: 5,
                 decoration: BoxDecoration(
-                  color: Colors.black12,
+                  color: context.line,
                   borderRadius: BorderRadius.circular(4),
                 ),
               ),
@@ -487,8 +517,8 @@ class _GroupSheetState extends State<_GroupSheet> {
                 label: const Text('Scan QR code'),
                 style: OutlinedButton.styleFrom(
                   minimumSize: const Size.fromHeight(56),
-                  foregroundColor: Brand.ink,
-                  side: const BorderSide(color: Colors.black12),
+                  foregroundColor: context.text,
+                  side: BorderSide(color: context.line),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(18),
                   ),

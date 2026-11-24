@@ -24,25 +24,38 @@ class Brand {
     Color(0xFF10B981),
   ];
 
+  static ThemeData darkTheme() {
+    final scheme = ColorScheme.fromSeed(
+      seedColor: teal,
+      brightness: Brightness.dark,
+      surface: const Color(0xFF16233A),
+    );
+    return _build(scheme, const Color(0xFF0B1424), teal);
+  }
+
   static ThemeData theme() {
     final scheme = ColorScheme.fromSeed(
       seedColor: teal,
       brightness: Brightness.light,
       surface: Colors.white,
     );
+    return _build(scheme, sand, ink);
+  }
+
+  static ThemeData _build(ColorScheme scheme, Color bg, Color button) {
     return ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
-      scaffoldBackgroundColor: sand,
+      scaffoldBackgroundColor: bg,
       fontFamily: 'Roboto',
-      appBarTheme: const AppBarTheme(
+      appBarTheme: AppBarTheme(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        foregroundColor: ink,
+        foregroundColor: scheme.onSurface,
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: Colors.white,
+        fillColor: scheme.surface,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 18,
           vertical: 16,
@@ -55,7 +68,7 @@ class Brand {
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           minimumSize: const Size.fromHeight(56),
-          backgroundColor: ink,
+          backgroundColor: button,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(18),
           ),
@@ -64,4 +77,16 @@ class Brand {
       ),
     );
   }
+}
+
+/// Theme-aware colours so every screen works in light and dark mode.
+extension UiColors on BuildContext {
+  ColorScheme get _cs => Theme.of(this).colorScheme;
+  bool get isDark => Theme.of(this).brightness == Brightness.dark;
+  Color get surface => _cs.surface;
+  Color get bg => Theme.of(this).scaffoldBackgroundColor;
+  Color get text => _cs.onSurface;
+  Color get muted => _cs.onSurface.withValues(alpha: .6);
+  Color get subtle => _cs.onSurface.withValues(alpha: .3);
+  Color get line => _cs.onSurface.withValues(alpha: .12);
 }

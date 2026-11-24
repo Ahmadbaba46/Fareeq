@@ -62,6 +62,7 @@ class FirebaseRepository implements Repository {
   Map<String, dynamic> _identity(Profile me) => {
     'name': me.name,
     'color': me.colorIndex,
+    'emoji': me.emoji,
   };
 
   @override
@@ -112,6 +113,10 @@ class FirebaseRepository implements Repository {
         'lng': pos.longitude,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
+
+  @override
+  Future<void> updateIdentity(String code, Profile me) =>
+      _members(code).doc(_uid).set(_identity(me), SetOptions(merge: true));
 
   @override
   Future<void> setSos(String code, Profile me, bool on) => _members(code)
@@ -177,6 +182,7 @@ class FirebaseRepository implements Repository {
                 (m['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
             isMe: d.id == _uid,
             sos: m['sos'] == true,
+            emoji: m['emoji'] as String?,
             status: m['status'] as String?,
             statusAt: (m['statusAt'] as Timestamp?)?.toDate(),
           );

@@ -1,9 +1,10 @@
 import 'package:latlong2/latlong.dart';
 
 class Profile {
-  Profile({required this.name, required this.colorIndex});
+  Profile({required this.name, required this.colorIndex, this.emoji});
   final String name;
   final int colorIndex;
+  final String? emoji;
 }
 
 class Group {
@@ -27,6 +28,7 @@ class Member {
     this.sos = false,
     this.status,
     this.statusAt,
+    this.emoji,
   });
 
   final String id;
@@ -37,6 +39,7 @@ class Member {
   final bool isMe;
   final bool sos;
   final String? status;
+  final String? emoji;
   final DateTime? statusAt;
 
   /// A quick message ("Running late") stays visible for 30 minutes.

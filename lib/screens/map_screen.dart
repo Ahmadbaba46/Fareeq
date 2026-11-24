@@ -197,8 +197,8 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
           20,
           24 + MediaQuery.of(context).padding.bottom,
         ),
-        decoration: const BoxDecoration(
-          color: Brand.sand,
+        decoration: BoxDecoration(
+          color: context.bg,
           borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
         ),
         child: Column(
@@ -208,7 +208,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
               width: 44,
               height: 5,
               decoration: BoxDecoration(
-                color: Colors.black12,
+                color: context.line,
                 borderRadius: BorderRadius.circular(4),
               ),
             ),
@@ -217,9 +217,9 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
               'Quick message',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
             ),
-            const Text(
+            Text(
               'Shown above your marker for 30 minutes',
-              style: TextStyle(color: Colors.black54, fontSize: 12.5),
+              style: TextStyle(color: context.muted, fontSize: 12.5),
             ),
             const SizedBox(height: 16),
             Wrap(
@@ -507,6 +507,18 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
               TileLayer(
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 userAgentPackageName: 'com.fuyoudhat.fareeq',
+                // Dark mode: invert + dim the (light) OSM tiles.
+                tileBuilder: context.isDark
+                    ? (ctx, tile, _) => ColorFiltered(
+                        colorFilter: const ColorFilter.matrix(<double>[
+                          -.78, 0, 0, 0, 215, //
+                          0, -.78, 0, 0, 220,
+                          0, 0, -.78, 0, 235,
+                          0, 0, 0, 1, 0,
+                        ]),
+                        child: tile,
+                      )
+                    : null,
               ),
               if (_showTrails)
                 PolylineLayer(
@@ -809,7 +821,7 @@ class _TopBar extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.fromLTRB(4, 4, 4, 4),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: .95),
+            color: context.surface.withValues(alpha: .95),
             borderRadius: BorderRadius.circular(26),
             boxShadow: [
               BoxShadow(
@@ -844,10 +856,10 @@ class _TopBar extends StatelessWidget {
                         ),
                         if (info.locked) ...[
                           const SizedBox(width: 6),
-                          const Icon(
+                          Icon(
                             Icons.lock_rounded,
                             size: 14,
-                            color: Colors.black45,
+                            color: context.muted,
                           ),
                         ],
                       ],
@@ -869,9 +881,9 @@ class _TopBar extends StatelessWidget {
                                 ? '$liveCount of $total live'
                                 : 'Sharing paused',
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12,
-                              color: Colors.black54,
+                              color: context.muted,
                             ),
                           ),
                         ),
@@ -1298,7 +1310,7 @@ class _DirectionCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 10, 6, 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.surface,
         borderRadius: BorderRadius.circular(22),
         boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 16)],
       ),
@@ -1321,7 +1333,7 @@ class _DirectionCard extends StatelessWidget {
                   meters == null
                       ? 'Waiting for location…'
                       : '${formatDistance(meters!)} · ${walkTime(meters!)}',
-                  style: const TextStyle(fontSize: 12, color: Colors.black54),
+                  style: TextStyle(fontSize: 12, color: context.muted),
                 ),
               ],
             ),
@@ -1345,7 +1357,7 @@ class _RoundButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-    color: Colors.white,
+    color: context.surface,
     elevation: 6,
     shadowColor: Colors.black38,
     shape: const CircleBorder(),
@@ -1354,7 +1366,7 @@ class _RoundButton extends StatelessWidget {
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.all(13),
-        child: Icon(icon, color: Brand.ink),
+        child: Icon(icon, color: context.text),
       ),
     ),
   );
@@ -1391,7 +1403,7 @@ class _MemberSheet extends StatelessWidget {
     final extra = meeting != null ? 1 : 0;
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.surface,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
         boxShadow: [
           BoxShadow(
@@ -1413,7 +1425,7 @@ class _MemberSheet extends StatelessWidget {
                   width: 44,
                   height: 5,
                   decoration: BoxDecoration(
-                    color: Colors.black12,
+                    color: context.line,
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
@@ -1425,11 +1437,11 @@ class _MemberSheet extends StatelessWidget {
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
                   ),
                 ),
-                const Align(
+                Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
                     'Tap a person for a guide line. Long-press the map to set a meeting point.',
-                    style: TextStyle(fontSize: 12, color: Colors.black45),
+                    style: TextStyle(fontSize: 12, color: context.muted),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -1466,10 +1478,14 @@ class _MemberSheet extends StatelessWidget {
           return _tile(
             active: target == m.id,
             onTap: () => onTap(m),
-            leading: Avatar(name: m.name, colorIndex: m.colorIndex),
+            leading: Avatar(
+              name: m.name,
+              colorIndex: m.colorIndex,
+              emoji: m.emoji,
+            ),
             title: m.isMe ? 'You' : m.name,
             titleColor: m.sos ? Colors.red : null,
-            dot: m.sos ? Colors.red : (m.isLive ? Brand.teal : Colors.black26),
+            dot: m.sos ? Colors.red : (m.isLive ? Brand.teal : context.subtle),
             subtitle: [
               if (m.sos) 'SOS - needs help',
               if (m.activeStatus != null) '"${m.activeStatus}"',

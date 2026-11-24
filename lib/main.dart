@@ -24,26 +24,31 @@ class _FareeqAppState extends State<FareeqApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Fareeq',
-      debugShowCheckedModeBanner: false,
-      theme: Brand.theme(),
-      home: FutureBuilder<void>(
-        future: _ready,
-        builder: (context, snap) {
-          if (snap.connectionState != ConnectionState.done) {
-            return const _Splash();
-          }
-          return ListenableBuilder(
-            listenable: _app,
-            builder: (context, _) => AnimatedSwitcher(
-              duration: const Duration(milliseconds: 600),
-              child: _app.profile == null
-                  ? OnboardingScreen(key: const ValueKey('onb'), app: _app)
-                  : HomeScreen(key: const ValueKey('home'), app: _app),
-            ),
-          );
-        },
+    return ListenableBuilder(
+      listenable: _app,
+      builder: (context, _) => MaterialApp(
+        title: 'Fareeq',
+        debugShowCheckedModeBanner: false,
+        theme: Brand.theme(),
+        darkTheme: Brand.darkTheme(),
+        themeMode: _app.themeMode,
+        home: FutureBuilder<void>(
+          future: _ready,
+          builder: (context, snap) {
+            if (snap.connectionState != ConnectionState.done) {
+              return const _Splash();
+            }
+            return ListenableBuilder(
+              listenable: _app,
+              builder: (context, _) => AnimatedSwitcher(
+                duration: const Duration(milliseconds: 600),
+                child: _app.profile == null
+                    ? OnboardingScreen(key: const ValueKey('onb'), app: _app)
+                    : HomeScreen(key: const ValueKey('home'), app: _app),
+              ),
+            );
+          },
+        ),
       ),
     );
   }
