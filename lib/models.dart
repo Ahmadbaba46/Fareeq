@@ -111,3 +111,15 @@ class JoinException implements Exception {
   @override
   String toString() => message;
 }
+
+/// Cheap one-off snapshot of a group for the trips list.
+class GroupSummary {
+  const GroupSummary({
+    required this.people,
+    required this.live,
+    required this.locked,
+  });
+  final int people;
+  final int live;
+  final bool locked;
+}

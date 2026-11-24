@@ -20,6 +20,9 @@ class AppState extends ChangeNotifier {
   Profile? profile;
   List<Group> groups = [];
 
+  /// People / live / locked per group code, filled by [refreshSummaries].
+  final Map<String, GroupSummary> summaries = {};
+
   /// My latest position, shared with every joined group while [sharing].
   final myPosition = ValueNotifier<LatLng?>(null);
   bool sharing = true;
@@ -62,7 +65,10 @@ class AppState extends ChangeNotifier {
     groups = raw
         .map((e) => Group.fromJson(jsonDecode(e) as Map<String, dynamic>))
         .toList();
-    if (profile != null) unawaited(startTracking());
+    if (profile != null) {
+      unawaited(startTracking());
+      unawaited(refreshSummaries());
+    }
   }
 
   Future<void> saveProfile(Profile p) async {
@@ -107,6 +113,35 @@ class AppState extends ChangeNotifier {
     final pos = myPosition.value;
     if (pos != null) _push(pos);
     return g;
+  }
+
+  /// Move a group to the front: the first group is the "active trip".
+  Future<void> touch(Group g) async {
+    final i = groups.indexWhere((x) => x.code == g.code);
+    if (i <= 0) return;
+    groups.insert(0, groups.removeAt(i));
+    await _persist();
+    notifyListeners();
+  }
+
+  /// One read per group (not a live listener) to stay within the free tier.
+  Future<void> refreshSummaries() async {
+    for (final g in List.of(groups)) {
+      try {
+        final s = await repo.summary(g.code);
+        if (s == null) {
+          // the creator ended this trip
+          groups.removeWhere((x) => x.code == g.code);
+          summaries.remove(g.code);
+          await _persist();
+        } else {
+          summaries[g.code] = s;
+        }
+      } catch (_) {
+        // offline: keep whatever we showed before
+      }
+    }
+    notifyListeners();
   }
 
   /// Drop a group locally (e.g. the owner ended the trip).

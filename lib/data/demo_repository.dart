@@ -39,6 +39,10 @@ class DemoRepository implements Repository {
   }
 
   @override
+  Future<GroupSummary?> summary(String code) async =>
+      GroupSummary(people: 5, live: 4, locked: _g(code).locked);
+
+  @override
   Future<void> leave(String code) async {
     _myPos.remove(code);
     _bots.remove(code);

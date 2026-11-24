@@ -2,6 +2,7 @@
 
 Link up with the people you travel with and see each other on one live map, with no calls or "where are you?" texts.
 
+* Home: live trip card with a mini-map, quick actions (New group / Join with code / Scan QR) and a trips list with live counts
 * Animated onboarding, group creation, join-by-code
 * Live map (OpenStreetMap, **no API key, no billing**) with smoothly gliding, pulsing markers
 * Distance to each friend, "last seen", tap to fly to them, one-tap directions

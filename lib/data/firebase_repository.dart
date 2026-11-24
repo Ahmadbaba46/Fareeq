@@ -103,6 +103,23 @@ class FirebaseRepository implements Repository {
   }
 
   @override
+  Future<GroupSummary?> summary(String code) async {
+    final g = await _group(code).get();
+    if (!g.exists) return null;
+    final ms = await _members(code).get();
+    final now = DateTime.now();
+    final live = ms.docs.where((d) {
+      final t = (d.data()['updatedAt'] as Timestamp?)?.toDate();
+      return t != null && now.difference(t).inMinutes < 3;
+    }).length;
+    return GroupSummary(
+      people: ms.size,
+      live: live,
+      locked: g.data()?['locked'] == true,
+    );
+  }
+
+  @override
   Future<void> leave(String code) => _members(code).doc(_uid).delete();
 
   @override

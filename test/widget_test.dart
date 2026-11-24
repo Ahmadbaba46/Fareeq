@@ -23,23 +23,47 @@ void main() {
     expect(find.textContaining('where are you'), findsOneWidget);
   });
 
-  testWidgets('home shows demo banner and creates a group', (tester) async {
+  testWidgets('home: first run, create trip, live trip card', (tester) async {
     SharedPreferences.setMockInitialValues({});
     final app = AppState();
     await tester.runAsync(app.init);
     await app.saveProfile(Profile(name: 'Ahmad', colorIndex: 1));
+    tester.view.physicalSize = const Size(420, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
     await tester.pumpWidget(MaterialApp(home: HomeScreen(app: app)));
     await tester.pump(const Duration(seconds: 1));
     expect(find.textContaining('Demo mode'), findsOneWidget);
     expect(find.text('Ahmad'), findsOneWidget);
-    await tester.tap(find.text('New group'));
+    expect(find.text('Create a group'), findsOneWidget);
+    expect(find.text('Scan QR'), findsOneWidget);
+
+    await tester.tap(find.text('Create a group'));
+    await tester.pump();
     await tester.pump(const Duration(seconds: 1));
     expect(find.text('Name your trip'), findsOneWidget);
     await tester.tapAt(const Offset(10, 10));
+    await tester.pump();
     await tester.pump(const Duration(seconds: 1));
+
     await tester.runAsync(() => app.create('Istanbul'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pump(const Duration(seconds: 2));
+    expect(find.text('Open map'), findsOneWidget);
+    expect(find.text('Your trips'), findsOneWidget);
+    expect(find.text('Istanbul'), findsWidgets); // hero + list tile
+    expect(find.textContaining('live · Code'), findsOneWidget);
+
+    await tester.tap(find.text('Open map'));
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(const Duration(seconds: 1));
+    }
+    expect(find.text('Your crew'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox());
     await tester.pump(const Duration(seconds: 1));
-    expect(find.text('Istanbul'), findsOneWidget);
   });
 
   testWidgets('map: SOS, meeting point, lock, guide line', (tester) async {
@@ -61,7 +85,10 @@ void main() {
     expect(find.text('Amina'), findsWidgets);
 
     // tap a friend in the list -> direction card appears
-    await tester.tap(find.text('Amina').first);
+    final amina = find.widgetWithText(ListTile, 'Amina');
+    await tester.ensureVisible(amina);
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(amina);
     await tester.pump(const Duration(seconds: 1));
     expect(find.byIcon(Icons.near_me_rounded), findsOneWidget);
 

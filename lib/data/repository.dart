@@ -19,6 +19,9 @@ abstract class Repository {
   /// Throws [JoinException] if the group does not exist or is locked.
   Future<Group> joinGroup(String code, Profile me);
   Stream<List<Member>> members(String code);
+
+  /// One-time read of counts for the trips list; null if the group is gone.
+  Future<GroupSummary?> summary(String code);
   Stream<GroupInfo> groupInfo(String code);
   Future<void> updateLocation(String code, Profile me, LatLng pos);
 
