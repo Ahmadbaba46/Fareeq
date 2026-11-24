@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:latlong2/latlong.dart';
@@ -33,18 +34,18 @@ class LocationService {
   /// Only moves of 15 m or more are emitted - keeps Firestore writes and
   /// battery low enough for the free tier.
   static Stream<LatLng> stream() => Geolocator.getPositionStream(
-        locationSettings: AndroidSettings(
-          accuracy: LocationAccuracy.high,
-          distanceFilter: 15,
-          foregroundNotificationConfig: const ForegroundNotificationConfig(
-            notificationTitle: 'Fareeq is sharing your location',
-            notificationText: 'Your travel group can see where you are.',
-            notificationChannelName: 'Location sharing',
-            enableWakeLock: true,
-            setOngoing: true,
-          ),
-        ),
-      ).map((p) => LatLng(p.latitude, p.longitude));
+    locationSettings: AndroidSettings(
+      accuracy: LocationAccuracy.high,
+      distanceFilter: 15,
+      foregroundNotificationConfig: const ForegroundNotificationConfig(
+        notificationTitle: 'Fareeq is sharing your location',
+        notificationText: 'Your travel group can see where you are.',
+        notificationChannelName: 'Location sharing',
+        enableWakeLock: true,
+        setOngoing: true,
+      ),
+    ),
+  ).map((p) => LatLng(p.latitude, p.longitude));
 
   static Future<LatLng?> current() async {
     try {

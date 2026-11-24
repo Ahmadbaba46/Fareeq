@@ -1,7 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:latlong2/latlong.dart';
+
 import '../models.dart';
 import 'repository.dart';
 
@@ -16,11 +18,11 @@ class FirebaseConfig {
       apiKey.isNotEmpty && appId.isNotEmpty && projectId.isNotEmpty;
 
   static FirebaseOptions get options => const FirebaseOptions(
-        apiKey: apiKey,
-        appId: appId,
-        projectId: projectId,
-        messagingSenderId: senderId,
-      );
+    apiKey: apiKey,
+    appId: appId,
+    projectId: projectId,
+    messagingSenderId: senderId,
+  );
 }
 
 /// Firestore + anonymous auth. Both are available on Firebase's free Spark
@@ -37,10 +39,13 @@ class FirebaseRepository implements Repository {
   bool get isDemo => false;
   @override
   String get userId => _uid;
+  @override
+  final offline = ValueNotifier<bool>(false);
 
   @override
   Future<void> init() async {
-    if (!FirebaseConfig.isConfigured) throw StateError('Firebase not configured');
+    if (!FirebaseConfig.isConfigured)
+      throw StateError('Firebase not configured');
     await Firebase.initializeApp(options: FirebaseConfig.options);
     final cred = FirebaseAuth.instance.currentUser != null
         ? FirebaseAuth.instance.currentUser!
@@ -54,8 +59,10 @@ class FirebaseRepository implements Repository {
   CollectionReference<Map<String, dynamic>> _members(String code) =>
       _group(code).collection('members');
 
-  Map<String, dynamic> _identity(Profile me) =>
-      {'name': me.name, 'color': me.colorIndex};
+  Map<String, dynamic> _identity(Profile me) => {
+    'name': me.name,
+    'color': me.colorIndex,
+  };
 
   @override
   Future<Group> createGroup(String name, Profile me) async {
@@ -69,10 +76,9 @@ class FirebaseRepository implements Repository {
         'locked': false,
         'createdAt': FieldValue.serverTimestamp(),
       });
-      await _members(code).doc(_uid).set({
-        ..._identity(me),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      await _members(code)
+          .doc(_uid)
+          .set({..._identity(me), 'updatedAt': FieldValue.serverTimestamp()});
       return Group(code: code, name: name);
     }
     throw Exception('Could not allocate a group code, try again');
@@ -108,11 +114,20 @@ class FirebaseRepository implements Repository {
       }, SetOptions(merge: true));
 
   @override
-  Future<void> setSos(String code, Profile me, bool on) =>
-      _members(code).doc(_uid).set({
+  Future<void> setSos(String code, Profile me, bool on) => _members(code)
+      .doc(_uid)
+      .set({
         ..._identity(me),
         'sos': on,
         'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+  @override
+  Future<void> setStatus(String code, Profile me, String? status) =>
+      _members(code).doc(_uid).set({
+        ..._identity(me),
+        'status': status,
+        'statusAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
   @override
@@ -135,30 +150,36 @@ class FirebaseRepository implements Repository {
 
   @override
   Stream<GroupInfo> groupInfo(String code) => _group(code).snapshots().map((s) {
-        if (!s.exists) return const GroupInfo(ended: true);
-        final d = s.data()!;
-        return GroupInfo(
-          ownerId: d['ownerId'] as String?,
-          locked: d['locked'] == true,
-          meeting: Meeting.fromMap(d['meeting']),
-        );
-      });
+    if (!s.exists) return const GroupInfo(ended: true);
+    final d = s.data()!;
+    return GroupInfo(
+      ownerId: d['ownerId'] as String?,
+      locked: d['locked'] == true,
+      meeting: Meeting.fromMap(d['meeting']),
+    );
+  });
 
   @override
-  Stream<List<Member>> members(String code) =>
-      _members(code).snapshots().map((s) => s.docs.map((d) {
-            final m = d.data();
-            final lat = (m['lat'] as num?)?.toDouble();
-            final lng = (m['lng'] as num?)?.toDouble();
-            return Member(
-              id: d.id,
-              name: (m['name'] as String?) ?? '?',
-              colorIndex: (m['color'] as int?) ?? 0,
-              position: lat == null || lng == null ? null : LatLng(lat, lng),
-              updatedAt:
-                  (m['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-              isMe: d.id == _uid,
-              sos: m['sos'] == true,
-            );
-          }).toList());
+  Stream<List<Member>> members(String code) => _members(code)
+      .snapshots(includeMetadataChanges: true)
+      .map((s) {
+        offline.value = s.metadata.isFromCache && s.docs.isNotEmpty;
+        return s.docs.map((d) {
+          final m = d.data();
+          final lat = (m['lat'] as num?)?.toDouble();
+          final lng = (m['lng'] as num?)?.toDouble();
+          return Member(
+            id: d.id,
+            name: (m['name'] as String?) ?? '?',
+            colorIndex: (m['color'] as int?) ?? 0,
+            position: lat == null || lng == null ? null : LatLng(lat, lng),
+            updatedAt:
+                (m['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+            isMe: d.id == _uid,
+            sos: m['sos'] == true,
+            status: m['status'] as String?,
+            statusAt: (m['statusAt'] as Timestamp?)?.toDate(),
+          );
+        }).toList();
+      });
 }

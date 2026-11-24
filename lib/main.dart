@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import 'app_state.dart';
 import 'screens/home_screen.dart';
 import 'screens/onboarding_screen.dart';
@@ -53,9 +54,9 @@ class _Splash extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        body: Container(
-          decoration: const BoxDecoration(gradient: Brand.gradient),
-          child: const Center(child: RadarHero(size: 200)),
-        ),
-      );
+    body: Container(
+      decoration: const BoxDecoration(gradient: Brand.gradient),
+      child: const Center(child: RadarHero(size: 200)),
+    ),
+  );
 }

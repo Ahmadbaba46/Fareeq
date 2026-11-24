@@ -10,6 +10,9 @@ Link up with the people you travel with and see each other on one live map, with
 * **Guide line**: tap a person (or the meeting point) to draw a free straight line with distance and walking time; one tap opens walking directions in your maps app
 * **SOS**: red alert with exact location to the whole group, with a "Go" button that draws the line to them
 * **Meeting point**: long-press the map
+* **Quick messages** ("Running late", "I am lost"...) shown above your marker for 30 minutes
+* **Far-away alert** when someone is >1.5 km from everyone else (can be turned off), **trails** toggle, and a **no-connection banner**
+* Share the invite on WhatsApp
 * **Lock group** (no new joins) and **End trip** (deletes all locations) for the group creator
 
 ## Run it (demo mode, zero setup)

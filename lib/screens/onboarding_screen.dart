@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../app_state.dart';
 import '../models.dart';
 import '../theme.dart';
@@ -19,9 +20,18 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   int _color = 0;
 
   static const _slides = [
-    ('Travel together,\nstay together', 'Create a group and everyone you travel with appears on one live map.'),
-    ('No more\n"where are you?"', 'See each other move in real time. No calls, no texts, no data plan for maps.'),
-    ('You are in control', 'Share only while the app is open, and pause whenever you like.'),
+    (
+      'Travel together,\nstay together',
+      'Create a group and everyone you travel with appears on one live map.',
+    ),
+    (
+      'No more\n"where are you?"',
+      'See each other move in real time. No calls, no texts, no data plan for maps.',
+    ),
+    (
+      'You are in control',
+      'Share only while the app is open, and pause whenever you like.',
+    ),
   ];
 
   @override
@@ -34,11 +44,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   void _next() {
     if (_page < 3) {
       _pages.nextPage(
-          duration: const Duration(milliseconds: 500),
-          curve: Curves.easeOutCubic);
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeOutCubic,
+      );
     } else if (_name.text.trim().isNotEmpty) {
       widget.app.saveProfile(
-          Profile(name: _name.text.trim(), colorIndex: _color));
+        Profile(name: _name.text.trim(), colorIndex: _color),
+      );
     }
   }
 
@@ -79,9 +91,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             width: i == _page ? 26 : 8,
                             height: 8,
                             decoration: BoxDecoration(
-                              color: i == _page
-                                  ? Colors.white
-                                  : Colors.white38,
+                              color: i == _page ? Colors.white : Colors.white38,
                               borderRadius: BorderRadius.circular(8),
                             ),
                           ),
@@ -100,7 +110,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           minimumSize: const Size(64, 64),
                           padding: EdgeInsets.zero,
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(32)),
+                            borderRadius: BorderRadius.circular(32),
+                          ),
                         ),
                         onPressed: last && _name.text.trim().isEmpty
                             ? null
@@ -108,12 +119,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         child: AnimatedSwitcher(
                           duration: const Duration(milliseconds: 250),
                           child: last
-                              ? const Text("Let's go",
+                              ? const Text(
+                                  "Let's go",
                                   key: ValueKey('go'),
                                   maxLines: 1,
-                                  softWrap: false)
-                              : const Icon(Icons.arrow_forward_rounded,
-                                  key: ValueKey('arrow')),
+                                  softWrap: false,
+                                )
+                              : const Icon(
+                                  Icons.arrow_forward_rounded,
+                                  key: ValueKey('arrow'),
+                                ),
                         ),
                       ),
                     ),
@@ -142,16 +157,24 @@ class _Slide extends StatelessWidget {
         children: [
           const Center(child: RadarHero()),
           const SizedBox(height: 36),
-          Text(title,
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 34,
-                  height: 1.1,
-                  fontWeight: FontWeight.w800)),
+          Text(
+            title,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 34,
+              height: 1.1,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
           const SizedBox(height: 14),
-          Text(body,
-              style: const TextStyle(
-                  color: Colors.white70, fontSize: 16, height: 1.4)),
+          Text(
+            body,
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 16,
+              height: 1.4,
+            ),
+          ),
         ],
       ),
     );
@@ -187,21 +210,27 @@ class _NamePage extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.all(6),
                 decoration: const BoxDecoration(
-                    shape: BoxShape.circle, color: Colors.white),
+                  shape: BoxShape.circle,
+                  color: Colors.white,
+                ),
                 child: Avatar(
-                    name: controller.text.isEmpty ? '?' : controller.text,
-                    colorIndex: color,
-                    size: 110),
+                  name: controller.text.isEmpty ? '?' : controller.text,
+                  colorIndex: color,
+                  size: 110,
+                ),
               ),
             ),
           ),
           const SizedBox(height: 36),
-          const Text('What should your\nfriends call you?',
-              style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 32,
-                  height: 1.1,
-                  fontWeight: FontWeight.w800)),
+          const Text(
+            'What should your\nfriends call you?',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 32,
+              height: 1.1,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
           const SizedBox(height: 20),
           TextField(
             controller: controller,
@@ -226,7 +255,9 @@ class _NamePage extends StatelessWidget {
                       color: Brand.memberColors[i],
                       shape: BoxShape.circle,
                       border: Border.all(
-                          color: Colors.white, width: i == color ? 4 : 0),
+                        color: Colors.white,
+                        width: i == color ? 4 : 0,
+                      ),
                     ),
                     child: i == color
                         ? const Icon(Icons.check, color: Colors.white, size: 18)

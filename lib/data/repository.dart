@@ -1,5 +1,8 @@
 import 'dart:math';
+
+import 'package:flutter/foundation.dart';
 import 'package:latlong2/latlong.dart';
+
 import '../models.dart';
 
 /// Backend contract. Two implementations: [DemoRepository] (no setup at all)
@@ -7,6 +10,9 @@ import '../models.dart';
 abstract class Repository {
   bool get isDemo;
   String get userId;
+
+  /// True while the backend cannot be reached (data is from local cache).
+  ValueNotifier<bool> get offline;
   Future<void> init();
   Future<Group> createGroup(String name, Profile me);
 
@@ -16,6 +22,7 @@ abstract class Repository {
   Stream<GroupInfo> groupInfo(String code);
   Future<void> updateLocation(String code, Profile me, LatLng pos);
   Future<void> setSos(String code, Profile me, bool on);
+  Future<void> setStatus(String code, Profile me, String? status);
   Future<void> setMeeting(String code, Meeting? meeting);
   Future<void> setLocked(String code, bool locked);
 

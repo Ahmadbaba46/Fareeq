@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'dart:math';
+
+import 'package:flutter/foundation.dart';
 import 'package:latlong2/latlong.dart';
+
 import '../models.dart';
 import 'repository.dart';
 
@@ -18,6 +21,8 @@ class DemoRepository implements Repository {
   bool get isDemo => true;
   @override
   String get userId => 'me';
+  @override
+  final offline = ValueNotifier<bool>(false);
   @override
   Future<void> init() async {}
 
@@ -50,6 +55,13 @@ class DemoRepository implements Repository {
   }
 
   @override
+  Future<void> setStatus(String code, Profile me, String? status) async {
+    _g(code)
+      ..status = status
+      ..statusAt = DateTime.now();
+  }
+
+  @override
   Future<void> setMeeting(String code, Meeting? meeting) async {
     _g(code)
       ..meeting = meeting
@@ -78,13 +90,14 @@ class DemoRepository implements Repository {
   }
 
   List<_Bot> _botsFor(String code) => _bots.putIfAbsent(
-      code,
-      () => [
-            _Bot('Amina', 3, _rand),
-            _Bot('Yusuf', 1, _rand),
-            _Bot('Khadija', 4, _rand),
-            _Bot('Ibrahim', 5, _rand),
-          ]);
+    code,
+    () => [
+      _Bot('Amina', 3, _rand),
+      _Bot('Yusuf', 1, _rand),
+      _Bot('Khadija', 4, _rand),
+      _Bot('Ibrahim', 5, _rand),
+    ],
+  );
 
   @override
   Stream<List<Member>> members(String code) async* {
@@ -104,6 +117,8 @@ class DemoRepository implements Repository {
           updatedAt: now,
           isMe: true,
           sos: _g(code).sos,
+          status: _g(code).status,
+          statusAt: _g(code).statusAt,
         ),
         for (final b in bots)
           Member(
@@ -112,6 +127,8 @@ class DemoRepository implements Repository {
             colorIndex: b.color,
             position: b.pos,
             updatedAt: b.stale ? now.subtract(const Duration(minutes: 7)) : now,
+            status: b.name == 'Amina' ? 'Found the place' : null,
+            statusAt: now,
           ),
       ];
       await Future<void>.delayed(const Duration(seconds: 2));
@@ -123,18 +140,20 @@ class _DemoGroup {
   bool locked = false;
   bool ended = false;
   bool sos = false;
+  String? status;
+  DateTime? statusAt;
   Meeting? meeting;
   final changes = StreamController<GroupInfo>.broadcast();
 
-  GroupInfo get info => GroupInfo(
-      ownerId: 'me', locked: locked, meeting: meeting, ended: ended);
+  GroupInfo get info =>
+      GroupInfo(ownerId: 'me', locked: locked, meeting: meeting, ended: ended);
   void push() => changes.add(info);
 }
 
 class _Bot {
   _Bot(this.name, this.color, Random r)
-      : _dx = (r.nextDouble() - .5) * .012,
-        _dy = (r.nextDouble() - .5) * .012;
+    : _dx = (r.nextDouble() - .5) * .012,
+      _dy = (r.nextDouble() - .5) * .012;
   final String name;
   final int color;
   final double _dx, _dy;
@@ -147,8 +166,10 @@ class _Bot {
     if (p == null) {
       pos = LatLng(origin.latitude + _dy, origin.longitude + _dx);
     } else if (!stale) {
-      pos = LatLng(p.latitude + (r.nextDouble() - .45) * .0006,
-          p.longitude + (r.nextDouble() - .45) * .0006);
+      pos = LatLng(
+        p.latitude + (r.nextDouble() - .45) * .0006,
+        p.longitude + (r.nextDouble() - .45) * .0006,
+      );
     }
   }
 }

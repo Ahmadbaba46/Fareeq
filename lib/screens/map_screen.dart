@@ -56,6 +56,9 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   bool _mapReady = false;
   bool _endedHandled = false;
   String? _target; // member id or _meetingId
+  bool _showTrails = false;
+  final Map<String, List<LatLng>> _trails = {};
+  final Set<String> _stragDismissed = {};
 
   String get _code => widget.group.code;
   Profile get _profile => widget.app.profile!;
@@ -130,7 +133,18 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       }
       if (!m.sos) _sosSeen.remove(m.id);
     }
+    // keep a short local trail of each person's movement
+    for (final m in list) {
+      final p = m.position;
+      if (p == null) continue;
+      final t = _trails.putIfAbsent(m.id, () => []);
+      if (t.isEmpty || const Distance().as(LengthUnit.Meter, t.last, p) > 8) {
+        t.add(p);
+        if (t.length > 120) t.removeAt(0);
+      }
+    }
     _members = list;
+    _stragDismissed.removeWhere((id) => !_stragglers().any((s) => s.id == id));
     _move.value = 0;
     _move.animateTo(1, curve: Curves.easeInOut);
     setState(() {});
@@ -138,6 +152,105 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       _fitted = true;
       _fitAll();
     }
+  }
+
+  /// Live people (not me) who are far from every other live person.
+  List<Member> _stragglers() {
+    final live = _members.where((m) => m.isLive && m.position != null).toList();
+    if (live.length < 3) return [];
+    const far = 1500.0; // metres
+    return [
+      for (final m in live)
+        if (!m.isMe &&
+            live
+                .where((o) => o.id != m.id)
+                .every(
+                  (o) =>
+                      const Distance().as(
+                        LengthUnit.Meter,
+                        m.position!,
+                        o.position!,
+                      ) >
+                      far,
+                ))
+          m,
+    ];
+  }
+
+  Future<void> _showStatus() async {
+    const options = [
+      'On my way',
+      'Running late',
+      'Found the place',
+      'Need a break',
+      'I am lost',
+      'All good here',
+    ];
+    final current = _meMember?.activeStatus;
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        padding: EdgeInsets.fromLTRB(
+          20,
+          14,
+          20,
+          24 + MediaQuery.of(context).padding.bottom,
+        ),
+        decoration: const BoxDecoration(
+          color: Brand.sand,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 44,
+              height: 5,
+              decoration: BoxDecoration(
+                color: Colors.black12,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Quick message',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+            ),
+            const Text(
+              'Shown above your marker for 30 minutes',
+              style: TextStyle(color: Colors.black54, fontSize: 12.5),
+            ),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                for (final o in options)
+                  ChoiceChip(
+                    label: Text(o),
+                    selected: current == o,
+                    onSelected: (_) => Navigator.pop(context, o),
+                  ),
+              ],
+            ),
+            if (current != null) ...[
+              const SizedBox(height: 14),
+              TextButton(
+                onPressed: () => Navigator.pop(context, ''),
+                child: const Text('Clear my message'),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+    if (choice == null) return;
+    await widget.app.repo.setStatus(
+      _code,
+      _profile,
+      choice.isEmpty ? null : choice,
+    );
   }
 
   LatLng? _shown(String id) {
@@ -307,6 +420,10 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
         await showInviteSheet(context, widget.group);
       case 'sharing':
         await widget.app.setSharing(!widget.app.sharing);
+      case 'trails':
+        setState(() => _showTrails = !_showTrails);
+      case 'straggler':
+        await widget.app.setStraggler(!widget.app.straggler);
       case 'lock':
         await widget.app.repo.setLocked(_code, !_info.locked);
       case 'end':
@@ -391,6 +508,25 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 userAgentPackageName: 'com.fuyoudhat.fareeq',
               ),
+              if (_showTrails)
+                PolylineLayer(
+                  polylines: [
+                    for (final e in _trails.entries)
+                      if (e.value.length > 1)
+                        Polyline(
+                          points: e.value,
+                          strokeWidth: 4,
+                          color: Brand
+                              .memberColors[(_members
+                                          .where((m) => m.id == e.key)
+                                          .firstOrNull
+                                          ?.colorIndex ??
+                                      0) %
+                                  Brand.memberColors.length]
+                              .withValues(alpha: .75),
+                        ),
+                  ],
+                ),
               AnimatedBuilder(
                 animation: _move,
                 builder: (context, _) {
@@ -483,6 +619,8 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
             liveCount: _members.where((m) => m.isLive).length,
             total: _members.length,
             sharing: widget.app.sharing,
+            showTrails: _showTrails,
+            straggler: widget.app.straggler,
             onInvite: () => showInviteSheet(context, widget.group),
             onMenu: _menu,
           ),
@@ -493,6 +631,29 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
             right: 12,
             child: Column(
               children: [
+                ValueListenableBuilder<bool>(
+                  valueListenable: widget.app.repo.offline,
+                  builder: (_, off, _) => off
+                      ? const _InfoBanner(
+                          icon: Icons.cloud_off_rounded,
+                          color: Colors.blueGrey,
+                          text: 'No connection. Showing last known locations; your updates send when you are back online.',
+                        )
+                      : const SizedBox.shrink(),
+                ),
+                if (widget.app.straggler)
+                  for (final s in _stragglers())
+                    if (!_stragDismissed.contains(s.id))
+                      _InfoBanner(
+                        key: ValueKey('far${s.id}'),
+                        icon: Icons.social_distance_rounded,
+                        color: Colors.orange.shade800,
+                        text: '${s.name} is far from the group',
+                        actionLabel: 'Find',
+                        onAction: () => _selectTarget(s.id),
+                        onClose: () =>
+                            setState(() => _stragDismissed.add(s.id)),
+                      ),
                 for (final m in sosAlerts)
                   _SosBanner(
                     key: ValueKey(m.id),
@@ -519,6 +680,11 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
             child: Column(
               children: [
                 _SosButton(active: iSos, onTap: _toggleSos),
+                const SizedBox(height: 10),
+                _RoundButton(
+                  icon: Icons.chat_bubble_rounded,
+                  onTap: _showStatus,
+                ),
                 const SizedBox(height: 10),
                 _RoundButton(icon: Icons.zoom_out_map_rounded, onTap: _fitAll),
                 const SizedBox(height: 10),
@@ -621,12 +787,14 @@ class _TopBar extends StatelessWidget {
     required this.liveCount,
     required this.total,
     required this.sharing,
+    required this.showTrails,
+    required this.straggler,
     required this.onInvite,
     required this.onMenu,
   });
   final Group group;
   final GroupInfo info;
-  final bool isOwner, sharing;
+  final bool isOwner, sharing, showTrails, straggler;
   final int liveCount, total;
   final VoidCallback onInvite;
   final ValueChanged<String> onMenu;
@@ -725,45 +893,142 @@ class _TopBar extends StatelessWidget {
                 itemBuilder: (_) => [
                   const PopupMenuItem(
                     value: 'invite',
-                    child: _MenuRow(Icon(Icons.qr_code_2_rounded), Text('Invite with QR')),
+                    child: _MenuRow(
+                      Icon(Icons.qr_code_2_rounded),
+                      Text('Invite with QR'),
+                    ),
                   ),
                   PopupMenuItem(
                     value: 'sharing',
-                    child: _MenuRow(Icon(
+                    child: _MenuRow(
+                      Icon(
                         sharing
                             ? Icons.pause_circle_rounded
                             : Icons.play_circle_rounded,
-                      ), Text(
-                        sharing ? 'Pause my sharing' : 'Resume sharing',
-                      )),
+                      ),
+                      Text(sharing ? 'Pause my sharing' : 'Resume sharing'),
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'trails',
+                    child: _MenuRow(
+                      const Icon(Icons.timeline_rounded),
+                      Text(showTrails ? 'Hide trails' : 'Show trails'),
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'straggler',
+                    child: _MenuRow(
+                      const Icon(Icons.social_distance_rounded),
+                      Text(
+                        straggler
+                            ? 'Turn off far-away alerts'
+                            : 'Alert me if someone is far',
+                      ),
+                    ),
                   ),
                   if (isOwner)
                     PopupMenuItem(
                       value: 'lock',
-                      child: _MenuRow(Icon(
+                      child: _MenuRow(
+                        Icon(
                           info.locked
                               ? Icons.lock_open_rounded
                               : Icons.lock_rounded,
-                        ), Text(
+                        ),
+                        Text(
                           info.locked
                               ? 'Unlock group'
                               : 'Lock group (no new joins)',
-                        )),
+                        ),
+                      ),
                     ),
                   if (isOwner)
                     const PopupMenuItem(
                       value: 'end',
-                      child: _MenuRow(Icon(Icons.flag_rounded, color: Brand.coral), Text('End trip')),
+                      child: _MenuRow(
+                        Icon(Icons.flag_rounded, color: Brand.coral),
+                        Text('End trip'),
+                      ),
                     ),
                   if (!isOwner)
                     const PopupMenuItem(
                       value: 'leave',
-                      child: _MenuRow(Icon(Icons.logout_rounded), Text('Leave group')),
+                      child: _MenuRow(
+                        Icon(Icons.logout_rounded),
+                        Text('Leave group'),
+                      ),
                     ),
                 ],
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _InfoBanner extends StatelessWidget {
+  const _InfoBanner({
+    super.key,
+    required this.icon,
+    required this.color,
+    required this.text,
+    this.actionLabel,
+    this.onAction,
+    this.onClose,
+  });
+  final IconData icon;
+  final Color color;
+  final String text;
+  final String? actionLabel;
+  final VoidCallback? onAction, onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeSlide(
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.fromLTRB(14, 8, 6, 8),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 10)],
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: Colors.white, size: 22),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                text,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            if (actionLabel != null)
+              TextButton(
+                onPressed: onAction,
+                style: TextButton.styleFrom(foregroundColor: Colors.white),
+                child: Text(
+                  actionLabel!,
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+              ),
+            if (onClose != null)
+              IconButton(
+                onPressed: onClose,
+                icon: const Icon(
+                  Icons.close_rounded,
+                  color: Colors.white70,
+                  size: 20,
+                ),
+              ),
+          ],
         ),
       ),
     );
@@ -776,8 +1041,13 @@ class _MenuRow extends StatelessWidget {
   final Text label;
 
   @override
-  Widget build(BuildContext context) =>
-      Row(children: [icon, const SizedBox(width: 14), Flexible(child: label)]);
+  Widget build(BuildContext context) => Row(
+    children: [
+      icon,
+      const SizedBox(width: 14),
+      Flexible(child: label),
+    ],
+  );
 }
 
 class _LineChip extends StatelessWidget {
@@ -1202,6 +1472,7 @@ class _MemberSheet extends StatelessWidget {
             dot: m.sos ? Colors.red : (m.isLive ? Brand.teal : Colors.black26),
             subtitle: [
               if (m.sos) 'SOS - needs help',
+              if (m.activeStatus != null) '"${m.activeStatus}"',
               m.lastSeen,
               if (!m.isMe) _distance(m.position),
             ].where((s) => s.isNotEmpty).join(' · '),

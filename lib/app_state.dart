@@ -1,9 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:latlong2/latlong.dart';
+
 import 'services/location_service.dart';
+
 import 'package:shared_preferences/shared_preferences.dart';
+
 import 'data/demo_repository.dart';
 import 'data/firebase_repository.dart';
 import 'data/repository.dart';
@@ -18,6 +22,7 @@ class AppState extends ChangeNotifier {
   /// My latest position, shared with every joined group while [sharing].
   final myPosition = ValueNotifier<LatLng?>(null);
   bool sharing = true;
+  bool straggler = true; // alert when someone is far from the group
   LocationStatus? locationStatus;
   StreamSubscription<LatLng>? _locSub;
   Timer? _heartbeat;
@@ -37,6 +42,7 @@ class AppState extends ChangeNotifier {
       profile = Profile(name: name, colorIndex: _prefs.getInt('color') ?? 0);
     }
     sharing = _prefs.getBool('sharing') ?? true;
+    straggler = _prefs.getBool('straggler') ?? true;
     final raw = _prefs.getStringList('groups') ?? [];
     groups = raw
         .map((e) => Group.fromJson(jsonDecode(e) as Map<String, dynamic>))
@@ -53,7 +59,9 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> _persist() => _prefs.setStringList(
-      'groups', groups.map((g) => jsonEncode(g.toJson())).toList());
+    'groups',
+    groups.map((g) => jsonEncode(g.toJson())).toList(),
+  );
 
   Future<Group> create(String name) async {
     final g = await repo.createGroup(name, profile!);
@@ -118,6 +126,12 @@ class AppState extends ChangeNotifier {
     _locSub = null;
     _heartbeat?.cancel();
     _heartbeat = null;
+  }
+
+  Future<void> setStraggler(bool v) async {
+    straggler = v;
+    await _prefs.setBool('straggler', v);
+    notifyListeners();
   }
 
   Future<void> setSharing(bool v) async {

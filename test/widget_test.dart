@@ -48,7 +48,9 @@ void main() {
     await tester.runAsync(app.init);
     await app.saveProfile(Profile(name: 'Ahmad', colorIndex: 1));
     final g = Group(code: 'TESTCODE', name: 'Test trip');
-    await tester.binding.setSurfaceSize(const Size(420, 900));
+    tester.view.physicalSize = const Size(420, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
     await tester.pumpWidget(MaterialApp(home: MapScreen(app: app, group: g)));
     await tester.pump(const Duration(seconds: 3));
     expect(find.text('Test trip'), findsOneWidget);
@@ -73,17 +75,35 @@ void main() {
     await tester.pump(const Duration(seconds: 2));
     expect(find.text('Hotel lobby'), findsWidgets);
 
+    // quick message
+    await tester.tap(find.byIcon(Icons.chat_bubble_rounded));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('Quick message'), findsOneWidget);
+    await tester.tap(find.text('Running late'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump(const Duration(seconds: 3));
+    expect(find.textContaining('Running late'), findsWidgets);
+
     // owner menu is offered, and locking updates the header
     await tester.tap(find.byIcon(Icons.more_vert));
+    await tester.pump();
     await tester.pump(const Duration(seconds: 1));
     expect(find.text('Lock group (no new joins)'), findsOneWidget);
     expect(find.text('End trip'), findsOneWidget);
-    tester
-        .widget<PopupMenuButton<String>>(find.byType(PopupMenuButton<String>))
-        .onSelected!('lock');
+    await tester.tap(find.text('Lock group (no new joins)'));
+    await tester.pump();
     await tester.pump(const Duration(seconds: 1));
     await tester.pump(const Duration(seconds: 1));
     expect(find.byIcon(Icons.lock_rounded), findsWidgets);
+    final menu = tester
+        .widget<PopupMenuButton<String>>(find.byType(PopupMenuButton<String>))
+        .onSelected!;
+    menu('trails');
+    menu('straggler');
+    await tester.pump(const Duration(seconds: 3));
+    expect(app.straggler, isFalse);
 
     await tester.pumpWidget(const SizedBox());
     await tester.pump(const Duration(seconds: 1));

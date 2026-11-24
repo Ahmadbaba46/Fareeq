@@ -25,6 +25,8 @@ class Member {
     required this.updatedAt,
     this.isMe = false,
     this.sos = false,
+    this.status,
+    this.statusAt,
   });
 
   final String id;
@@ -34,8 +36,19 @@ class Member {
   final DateTime updatedAt;
   final bool isMe;
   final bool sos;
+  final String? status;
+  final DateTime? statusAt;
 
-  String get initial => name.isEmpty ? '?' : String.fromCharCode(name.runes.first).toUpperCase();
+  /// A quick message ("Running late") stays visible for 30 minutes.
+  String? get activeStatus {
+    final s = status;
+    final at = statusAt;
+    if (s == null || s.isEmpty || at == null) return null;
+    return DateTime.now().difference(at).inMinutes < 30 ? s : null;
+  }
+
+  String get initial =>
+      name.isEmpty ? '?' : String.fromCharCode(name.runes.first).toUpperCase();
 
   bool get isLive => DateTime.now().difference(updatedAt).inMinutes < 3;
 
@@ -56,11 +69,11 @@ class Meeting {
   final String by;
 
   Map<String, dynamic> toMap() => {
-        'lat': position.latitude,
-        'lng': position.longitude,
-        'label': label,
-        'by': by,
-      };
+    'lat': position.latitude,
+    'lng': position.longitude,
+    'label': label,
+    'by': by,
+  };
 
   static Meeting? fromMap(Object? m) {
     if (m is! Map) return null;

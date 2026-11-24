@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:math';
+
 import 'package:flutter/material.dart';
+
 import '../models.dart';
 import '../theme.dart';
 
@@ -55,7 +57,12 @@ class _FadeSlideState extends State<FadeSlide> {
 }
 
 class Avatar extends StatelessWidget {
-  const Avatar({super.key, required this.name, required this.colorIndex, this.size = 44});
+  const Avatar({
+    super.key,
+    required this.name,
+    required this.colorIndex,
+    this.size = 44,
+  });
   final String name;
   final int colorIndex;
   final double size;
@@ -76,11 +83,14 @@ class Avatar extends StatelessWidget {
         ),
       ),
       child: Text(
-        name.isEmpty ? '?' : String.fromCharCode(name.runes.first).toUpperCase(),
+        name.isEmpty
+            ? '?'
+            : String.fromCharCode(name.runes.first).toUpperCase(),
         style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w800,
-            fontSize: size * .42),
+          color: Colors.white,
+          fontWeight: FontWeight.w800,
+          fontSize: size * .42,
+        ),
       ),
     );
   }
@@ -98,8 +108,9 @@ class PulseMarker extends StatefulWidget {
 class _PulseMarkerState extends State<PulseMarker>
     with SingleTickerProviderStateMixin {
   late final AnimationController _c = AnimationController(
-      vsync: this, duration: const Duration(milliseconds: 1800))
-    ..repeat();
+    vsync: this,
+    duration: const Duration(milliseconds: 1800),
+  )..repeat();
 
   @override
   void dispose() {
@@ -137,9 +148,10 @@ class _PulseMarkerState extends State<PulseMarker>
                 color: Colors.white,
                 boxShadow: [
                   BoxShadow(
-                      color: Colors.black.withValues(alpha: .25),
-                      blurRadius: 8,
-                      offset: const Offset(0, 3))
+                    color: Colors.black.withValues(alpha: .25),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
                 ],
               ),
               child: Opacity(
@@ -147,22 +159,55 @@ class _PulseMarkerState extends State<PulseMarker>
                 child: Avatar(name: m.name, colorIndex: m.colorIndex, size: 38),
               ),
             ),
+            if (m.activeStatus != null)
+              Positioned(
+                top: 0,
+                child: Container(
+                  constraints: const BoxConstraints(maxWidth: 108),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: const [
+                      BoxShadow(color: Colors.black26, blurRadius: 6),
+                    ],
+                  ),
+                  child: Text(
+                    m.activeStatus!,
+                    maxLines: 2,
+                    textAlign: TextAlign.center,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
             Positioned(
               bottom: 0,
               child: Transform.translate(
                 offset: const Offset(0, 4),
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: m.sos ? Colors.red : Brand.ink,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Text(m.sos ? 'SOS' : (m.isMe ? 'You' : m.name),
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700)),
+                  child: Text(
+                    m.sos ? 'SOS' : (m.isMe ? 'You' : m.name),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -185,8 +230,9 @@ class RadarHero extends StatefulWidget {
 class _RadarHeroState extends State<RadarHero>
     with SingleTickerProviderStateMixin {
   late final AnimationController _c = AnimationController(
-      vsync: this, duration: const Duration(seconds: 8))
-    ..repeat();
+    vsync: this,
+    duration: const Duration(seconds: 8),
+  )..repeat();
 
   @override
   void dispose() {
@@ -235,7 +281,7 @@ class _RadarPainter extends CustomPainter {
         transform: GradientRotation(t * 2 * pi),
         colors: [
           Brand.teal.withValues(alpha: 0),
-          Brand.teal.withValues(alpha: .45)
+          Brand.teal.withValues(alpha: .45),
         ],
         stops: const [.6, 1],
       ).createShader(Rect.fromCircle(center: c, radius: r));
@@ -249,12 +295,13 @@ class _RadarPainter extends CustomPainter {
       canvas.drawCircle(o, 14, Paint()..color = col.withValues(alpha: .3));
       canvas.drawCircle(o, 8, Paint()..color = col);
       canvas.drawCircle(
-          o,
-          8,
-          Paint()
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 2.5
-            ..color = Colors.white);
+        o,
+        8,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.5
+          ..color = Colors.white,
+      );
     }
     // centre
     canvas.drawCircle(c, 12, Paint()..color = Colors.white);
